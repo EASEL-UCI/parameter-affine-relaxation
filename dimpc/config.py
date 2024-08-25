@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from mitodd.helpers import get_dimensions, get_all_dimensions
+from dimpc.helpers import get_dimensions, get_all_dimensions
 
 CONTACT_ACTIVATION_FACTOR = 500.0
 CONTACT_SPRING_FACTOR = 100.0

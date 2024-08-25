@@ -3,8 +3,8 @@
 import casadi as cs
 import numpy as np
 
-from mitodd.config import *
-from mitodd.helpers import symbol, get_start_index, get_stop_index
+from dimpc.config import *
+from dimpc.helpers import symbol, get_start_index, get_stop_index
 
 
 class ModelParameters():

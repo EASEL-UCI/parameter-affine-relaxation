@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='mitodd',
+    name='dimpc',
     version='0.0.0',
     packages=find_packages(include=[
-        'mitodd',
-        'mitodd.*'
+        'dimpc',
+        'dimpc.*'
     ]),
     install_requires=[
         'numpy==1.26.4',
