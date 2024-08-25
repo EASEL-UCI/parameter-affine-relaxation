@@ -3,18 +3,15 @@
 import casadi as cs
 import numpy as np
 
-from mitodd.config import PARAMETER_CONFIG, STATE_VECTOR_CONFIG, INPUT_VECTOR_CONFIG
+from mitodd.config import *
+from mitodd.helpers import symbol, get_start_index, get_stop_index
 
 
 class ModelParameters():
     def __init__(self, **kwargs) -> None:
-        keys = list(kwargs.keys())
         for key, value in kwargs.items():
-            if key in keys: keys.remove(key)
-            else: raise AssertionError
-
+            assert key in kwargs.keys()
             assert type(value) == PARAMETER_CONFIG[key]["type"]
-
             try:
                 if len(value > 1):
                     for member in value:
@@ -22,9 +19,6 @@ class ModelParameters():
             except TypeError: pass
 
             setattr(self, key, value)
-
-        if len(keys):
-            raise AssertionError
 
 
 class StateSpaceModel():
@@ -63,18 +57,10 @@ class NonlinearQuadrotorModel(StateSpaceModel):
         self,
         param: ModelParameters
     ) -> dict:
-        p = cs.SX.sym(
-            "DRONE_POSITION", STATE_VECTOR_CONFIG["DRONE_POSITION"]["dimensions"]
-)
-        q = cs.SX.sym(
-            "DRONE_ORIENTATION", STATE_VECTOR_CONFIG["DRONE_ORIENTATION"]["dimensions"]
-        )
-        v = cs.SX.sym(
-            "DRONE_LINEAR_VELOCITY", STATE_VECTOR_CONFIG["DRONE_LINEAR_VELOCITY"]["dimensions"]
-        )
-        wB = cs.SX.sym(
-            "DRONE_ANGULAR_VELOCITY", STATE_VECTOR_CONFIG["DRONE_ANGULAR_VELOCITY"]["dimensions"]
-        )
+        p = symbol(STATE_CONFIG, "DRONE_POSITION")
+        q = symbol(STATE_CONFIG, "DRONE_ORIENTATION")
+        v = symbol(STATE_CONFIG, "DRONE_LINEAR_VELOCITY")
+        wB = symbol(STATE_CONFIG, "DRONE_ANGULAR_VELOCITY")
         self._x = cs.SX(cs.vertcat(p, q, v, wB))
 
         # rotation matrix
@@ -98,14 +84,12 @@ class NonlinearQuadrotorModel(StateSpaceModel):
         ))
 
         # gravity vector
-        g = cs.SX(cs.vertcat(0, 0, -9.81))
+        g = cs.SX(cs.vertcat(0, 0, -GRAVITY))
 
         # thrust of motors
-        self._u = cs.SX.sym(
-            "DRONE_THRUSTS", INPUT_VECTOR_CONFIG["DRONE_THRUSTS"]["dimensions"]
-        )
+        self._u = symbol(INPUT_CONFIG, "DRONE_THRUSTS")
         T = cs.SX(cs.vertcat(
-            0, 0, param.kf * (self.u[0] + self.u[1] + self.u[2] + self.u[3])
+            0, 0, param.kf * (self._u[0] + self._u[1] + self._u[2] + self._u[3])
         ))
 
         # double integrator dynamics
@@ -113,8 +97,8 @@ class NonlinearQuadrotorModel(StateSpaceModel):
             v,
             -cs.dot(q[1:], 0.5*wB),
             0.5 * q[0] * wB + cs.cross(q[1:], wB),
-            (R @ T - A @ v) / param.m + g,
-            cs.inv(J) @ (B @ self.u - cs.cross(wB, J @ wB))
+            g + (R @ T - A @ v) / param.m,
+            cs.inv(J) @ (B @ self._u - cs.cross(wB, J @ wB))
         ))
 
 
@@ -133,31 +117,57 @@ class LinearizedQuadrotorModel(NonlinearQuadrotorModel):
         xref: cs.SX,
         uref:cs.SX,
     ) -> dict:
-        A = cs.jacobian(self.xdot, self.x)
-        A = cs.substitute(A, self.x, xref)
+        A = cs.jacobian(self._xdot, self._x)
+        A = cs.substitute(A, self._x, xref)
 
-        B = cs.jacobian(self.xdot, self.u)
-        B = cs.substitute(B, self.u, uref)
+        B = cs.jacobian(self._xdot, self._u)
+        B = cs.substitute(B, self._u, uref)
 
-        self._xdot = A @ self.x + B @ self.u
+        self._xdot = A @ self._x + B @ self._u
 
 
 class DeliveryQuadrotorModel(NonlinearQuadrotorModel):
     def __init__(
         self,
-        parameters: ModelParameters,
+        drone_parameters: ModelParameters,
+        payload_parameters: ModelParameters,
     ) -> None:
-        super().__init__(parameters)
-        self._add_payload_to_model()
+        super().__init__(drone_parameters)
+        self._add_payload_model(payload_parameters)
 
-    def _add_payload_to_model():
-        pass
+    def _add_payload_model(self, param: ModelParameters) -> None:
+        #TODO: INCLUDE PAYLOAD INTO ORIGINAL PARAMETERS
+        p = symbol(STATE_CONFIG, "PAYLOAD_POSITION_0")
+        v = symbol(STATE_CONFIG, "PAYLOAD_VELOCITY_0")
+        u = symbol(INPUT_CONFIG, "PAYLOAD_RELEASE")
+
+        acc = self._xdot[
+            get_start_index(STATE_CONFIG, "DRONE_LINEAR_VELOCITY") :
+            get_stop_index(STATE_CONFIG, "DRONE_LINEAR_VELOCITY")
+        ]
+
+        g = cs.SX(cs.vertcat(0.0, 0.0, -GRAVITY))
+
+        sig = 1 / (1 + cs.exp(CONTACT_ACTIVATION_FACTOR * p[-1]))
+        ground = cs.SX(cs.vertcat(
+            -CONTACT_DAMPER_FACTOR * v[0],
+            -CONTACT_DAMPER_FACTOR * v[1],
+            -(CONTACT_SPRING_FACTOR * p[-1] + CONTACT_DAMPER_FACTOR * v[-1])
+        ))
+
+        self._xdot = cs.SX(cs.vertcat(
+            self._xdot,
+            v,
+            ((1-u) @ acc + u @ g + sig @ ground) / param.m
+        ))
+        self._x = cs.SX(cs.vertcat(self._x, p, v))
+        self._u = cs.SX(cs.vertcat(self._u, u))
 
 
 def CrazyflieModel(
-    Ax: float,
-    Ay: float,
-    Az: float,
+    Ax=0.0,
+    Ay=0.0,
+    Az=0.0,
 ) -> NonlinearQuadrotorModel:
     """
     crazyflie system identification:
