@@ -4,7 +4,7 @@ import casadi as cs
 import numpy as np
 
 from dimpc.config import *
-from dimpc.helpers import symbol, get_start_index, get_stop_index
+from dimpc.helpers import symbolic, get_start_index, get_stop_index
 
 
 class ModelParameters():
@@ -57,10 +57,10 @@ class NonlinearQuadrotorModel(StateSpaceModel):
         self,
         param: ModelParameters
     ) -> dict:
-        p = symbol(STATE_CONFIG, "DRONE_POSITION")
-        q = symbol(STATE_CONFIG, "DRONE_ORIENTATION")
-        v = symbol(STATE_CONFIG, "DRONE_LINEAR_VELOCITY")
-        wB = symbol(STATE_CONFIG, "DRONE_ANGULAR_VELOCITY")
+        p = symbolic(STATE_CONFIG, "DRONE_POSITION")
+        q = symbolic(STATE_CONFIG, "DRONE_ORIENTATION")
+        v = symbolic(STATE_CONFIG, "DRONE_LINEAR_VELOCITY")
+        wB = symbolic(STATE_CONFIG, "DRONE_ANGULAR_VELOCITY")
         self._x = cs.SX(cs.vertcat(p, q, v, wB))
 
         # rotation matrix
@@ -87,7 +87,7 @@ class NonlinearQuadrotorModel(StateSpaceModel):
         g = cs.SX(cs.vertcat(0, 0, -GRAVITY))
 
         # thrust of motors
-        self._u = symbol(INPUT_CONFIG, "DRONE_THRUSTS")
+        self._u = symbolic(INPUT_CONFIG, "DRONE_THRUSTS")
         T = cs.SX(cs.vertcat(
             0, 0, param.kf * (self._u[0] + self._u[1] + self._u[2] + self._u[3])
         ))
@@ -137,9 +137,9 @@ class DeliveryQuadrotorModel(NonlinearQuadrotorModel):
 
     def _add_payload_model(self, param: ModelParameters) -> None:
         #TODO: INCLUDE PAYLOAD INTO ORIGINAL PARAMETERS
-        p = symbol(STATE_CONFIG, "PAYLOAD_POSITION_0")
-        v = symbol(STATE_CONFIG, "PAYLOAD_VELOCITY_0")
-        u = symbol(INPUT_CONFIG, "PAYLOAD_RELEASE")
+        p = symbolic(STATE_CONFIG, "PAYLOAD_POSITION_0")
+        v = symbolic(STATE_CONFIG, "PAYLOAD_VELOCITY_0")
+        u = symbolic(INPUT_CONFIG, "PAYLOAD_RELEASE")
 
         acc = self._xdot[
             get_start_index(STATE_CONFIG, "DRONE_LINEAR_VELOCITY") :

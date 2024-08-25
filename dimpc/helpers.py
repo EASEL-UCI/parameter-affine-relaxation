@@ -42,5 +42,5 @@ def get_start_index(config: dict, id: str) -> int:
 def get_stop_index(config: dict, id: str) -> int:
     return get_start_or_end_index(config=config, id=id, is_start=False)
 
-def symbol(config: dict, id: str) -> cs.SX:
+def symbolic(config: dict, id: str) -> cs.SX:
     return cs.SX.sym(id, config[id]["dimensions"])
