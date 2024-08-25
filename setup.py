@@ -4,7 +4,8 @@ setup(
     name='mitodd',
     version='0.0.0',
     packages=find_packages(include=[
-        'mitodd'
+        'mitodd',
+        'mitodd.*'
     ]),
     install_requires=[
         'numpy==1.26.4',
