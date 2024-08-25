@@ -1,118 +1,87 @@
 #!/usr/bin/python3
 
-from abc import ABC, abstractmethod
-
 import casadi as cs
 import numpy as np
 
-
-PARAMETER_CONFIG  = {
-    "m": float,
-    "Ixx": float,
-    "Iyy": float,
-    "Izz": float,
-    "Ax": float,
-    "Ay": float,
-    "Az": float,
-    "kf": float,
-    "km": float,
-    "umin": float,
-    "umax": float,
-    "xB": np.ndarray,
-    "yB": np.ndarray,
-}
+from mitodd.config import PARAMETER_CONFIG, STATE_VECTOR_CONFIG, INPUT_VECTOR_CONFIG
 
 
 class ModelParameters():
     def __init__(self, **kwargs) -> None:
+        keys = list(kwargs.keys())
         for key, value in kwargs.items():
-            assert key in PARAMETER_CONFIG.keys()
-            assert type(value) == PARAMETER_CONFIG[key]
+            if key in keys: keys.remove(key)
+            else: raise AssertionError
+
+            assert type(value) == PARAMETER_CONFIG[key]["type"]
+
+            try:
+                if len(value > 1):
+                    for member in value:
+                        assert type(member) == PARAMETER_CONFIG[key]["member_type"]
+            except TypeError: pass
+
             setattr(self, key, value)
 
-
-class Model(ABC):
-    @property
-    @abstractmethod
-    def xdot(self) -> cs.SX:
-        pass
-    
-    @property
-    @abstractmethod
-    def x(self) -> cs.SX:
-        pass
-    
-    @property
-    @abstractmethod
-    def u(self) -> cs.SX:
-        pass
-    
-    @property
-    @abstractmethod
-    def parameters(self) -> ModelParameters:
-        pass
+        if len(keys):
+            raise AssertionError
 
 
-class QuadrotorModel(Model):
+class StateSpaceModel():
     def __init__(
         self,
-        parameters: ModelParameters,
+        parameters: ModelParameters
     ) -> None:
-        self._set_model(parameters)
         self._parameters = parameters
-
-    @property
-    def xdot(self):
-        return self._xdot
-
-    @property
-    def x(self):
-        return self._x
-
-    @property
-    def u(self):
-        return self._u
 
     @property
     def parameters(self) -> ModelParameters:
         return self._parameters
 
+    @property
+    def xdot(self) -> cs.SX:
+        return self._xdot
+
+    @property
+    def x(self) -> cs.SX:
+        return self._x
+
+    @property
+    def u(self) -> cs.SX:
+        return self._u
+
+
+class NonlinearQuadrotorModel(StateSpaceModel):
+    def __init__(
+        self,
+        parameters: ModelParameters,
+    ) -> None:
+        super().__init__(parameters)
+        self._set_model(parameters)
+
     def _set_model(
         self,
         param: ModelParameters
-    ) -> None:
-        model = self._derive_model(param)
-        self._xdot = model["xdot"]
-        self._x = model["x"]
-        self._u = model["u"]
-
-    def _derive_model(
-        self,
-        param: ModelParameters
     ) -> dict:
-        x = cs.SX.sym("x")
-        y = cs.SX.sym("y")
-        z = cs.SX.sym("z")
-        q0 = cs.SX.sym("q0")
-        q1 = cs.SX.sym("q1")
-        q2 = cs.SX.sym("q2")
-        q3 = cs.SX.sym("q3")
-        xdot = cs.SX.sym("xdot")
-        ydot = cs.SX.sym("ydot")
-        zdot = cs.SX.sym("zdot")
-        p = cs.SX.sym("p")
-        q = cs.SX.sym("q")
-        r = cs.SX.sym("r")
-
-        X = cs.SX(cs.vertcat(
-            x, y, z, q0, q1, q2, q3, xdot, ydot, zdot, p, q, r
-        ))
+        p = cs.SX.sym(
+            "DRONE_POSITION", STATE_VECTOR_CONFIG["DRONE_POSITION"]["dimensions"]
+)
+        q = cs.SX.sym(
+            "DRONE_ORIENTATION", STATE_VECTOR_CONFIG["DRONE_ORIENTATION"]["dimensions"]
+        )
+        v = cs.SX.sym(
+            "DRONE_LINEAR_VELOCITY", STATE_VECTOR_CONFIG["DRONE_LINEAR_VELOCITY"]["dimensions"]
+        )
+        wB = cs.SX.sym(
+            "DRONE_ANGULAR_VELOCITY", STATE_VECTOR_CONFIG["DRONE_ANGULAR_VELOCITY"]["dimensions"]
+        )
+        self._x = cs.SX(cs.vertcat(p, q, v, wB))
 
         # rotation matrix
         R = cs.SX(cs.vertcat(
-            cs.horzcat( 1-2*(q2**2+q3**2), 2*(q1*q2-q0*q3), 2*(q1*q3+q0*q2) ),
-            cs.horzcat( 2*(q1*q2+q0*q3), 1-2*(q1**2+q3**2), 2*(q2*q3-q0*q1) ),
-            cs.horzcat( 2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), 1-2*(q1**2+q2**2) ),
+            cs.horzcat( 1-2*(q[2]**2+q[3]**2), 2*(q[1]*q[2]-q[0]*q[3]), 2*(q[1]*q[3]+q[0]*q[2]) ),
+            cs.horzcat( 2*(q[1]*q[2]+q[0]*q[3]), 1-2*(q[1]**2+q[3]**2), 2*(q[2]*q[3]-q[0]*q[1]) ),
+            cs.horzcat( 2*(q[1]*q[3]-q[0]*q[2]), 2*(q[2]*q[3]+q[0]*q[1]), 1-2*(q[1]**2+q[2]**2) ),
         ))
 
         # drag terms
@@ -131,29 +100,25 @@ class QuadrotorModel(Model):
         # gravity vector
         g = cs.SX(cs.vertcat(0, 0, -9.81))
 
-        # thrust of motors 1 to 4
-        U = cs.SX.sym("u", 4)
+        # thrust of motors
+        self._u = cs.SX.sym(
+            "DRONE_THRUSTS", INPUT_VECTOR_CONFIG["DRONE_THRUSTS"]["dimensions"]
+        )
         T = cs.SX(cs.vertcat(
-            0, 0, param.kf *
-                (U[0]+U[1]+U[2]+U[3])
+            0, 0, param.kf * (self.u[0] + self.u[1] + self.u[2] + self.u[3])
         ))
 
         # double integrator dynamics
-        qv = cs.SX(cs.vertcat(q1,q2,q3))
-        v = cs.SX(cs.vertcat(xdot, ydot, zdot))
-        wB = cs.SX(cs.vertcat(p, q, r))
-        Xdot = cs.SX(cs.vertcat(
+        self._xdot = cs.SX(cs.vertcat(
             v,
-            -cs.dot(qv, 0.5*wB),
-            0.5 * q0 * wB + cs.cross(qv, wB),
+            -cs.dot(q[1:], 0.5*wB),
+            0.5 * q[0] * wB + cs.cross(q[1:], wB),
             (R @ T - A @ v) / param.m + g,
-            cs.inv(J) @ (B @ U - cs.cross(wB, J @ wB))
+            cs.inv(J) @ (B @ self.u - cs.cross(wB, J @ wB))
         ))
 
-        return {"xdot": Xdot, "x": X, "u": U}
 
-
-class LinearizedQuadrotorModel(QuadrotorModel):
+class LinearizedQuadrotorModel(NonlinearQuadrotorModel):
     def __init__(
         self,
         parameters: ModelParameters,
@@ -174,19 +139,30 @@ class LinearizedQuadrotorModel(QuadrotorModel):
         B = cs.jacobian(self.xdot, self.u)
         B = cs.substitute(B, self.u, uref)
 
-        self.xdot = A @ self.x + B @ self.u
+        self._xdot = A @ self.x + B @ self.u
 
 
-def Crazyflie(
+class DeliveryQuadrotorModel(NonlinearQuadrotorModel):
+    def __init__(
+        self,
+        parameters: ModelParameters,
+    ) -> None:
+        super().__init__(parameters)
+        self._add_payload_to_model()
+
+    def _add_payload_to_model():
+        pass
+
+
+def CrazyflieModel(
     Ax: float,
     Ay: float,
     Az: float,
-) -> QuadrotorModel:
+) -> NonlinearQuadrotorModel:
     """
     crazyflie system identification:
     https://www.research-collection.ethz.ch/handle/20.500.11850/214143
     """
-
     cf_params = ModelParameters(
         Ax=Ax,
         Ay=Ay,
@@ -202,5 +178,4 @@ def Crazyflie(
         xB=0.0283 * np.array([1, 1, -1, -1]),
         yB=0.0283 * np.array([1, -1, -1, 1]),
     )
-
-    return QuadrotorModel(cf_params)
+    return NonlinearQuadrotorModel(cf_params)
