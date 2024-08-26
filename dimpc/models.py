@@ -27,6 +27,9 @@ class StateSpaceModel():
         parameters: ModelParameters
     ) -> None:
         self._parameters = parameters
+        self._xdot = None
+        self._x = None
+        self._u = None
 
     @property
     def parameters(self) -> ModelParameters:
@@ -71,15 +74,15 @@ class NonlinearQuadrotorModel(StateSpaceModel):
         ))
 
         # drag terms
-        A = cs.SX(np.diag([param.Ax, param.Ay, param.Az]))
+        A = cs.SX(cs.diag([param.Ax, param.Ay, param.Az]))
 
         # Diagonal of inertial matrix
-        J = cs.SX(np.diag([param.Ixx, param.Iyy, param.Izz]))
+        J = cs.SX(cs.diag([param.Ixx, param.Iyy, param.Izz]))
 
         # control allocation matrix
         B = cs.SX(cs.vertcat(
-            param.kf * param.yB.reshape(1, param.yB.shape[0]),
-            param.kf * -param.xB.reshape(1, param.xB.shape[0]),
+            param.kf * cs.SX(param.yB).reshape((1, len(param.yB))),
+            param.kf * cs.SX(param.xB).reshape((1, len(param.xB))),
             param.km * cs.horzcat(-1, 1, -1, 1),
         ))
 
@@ -185,7 +188,7 @@ def CrazyflieModel(
         km=0.005964552,
         umin=0.0,
         umax=0.15,
-        xB=0.0283 * np.array([1, 1, -1, -1]),
-        yB=0.0283 * np.array([1, -1, -1, 1]),
+        xB=[0.0283, 0.0283, -0.0283, -0.0283],
+        yB=[0.0283, -0.0283, -0.0283, 0.0283],
     )
     return NonlinearQuadrotorModel(cf_params)
