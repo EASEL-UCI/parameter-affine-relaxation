@@ -4,7 +4,7 @@ import casadi as cs
 import numpy as np
 
 from dimpc.config import *
-from dimpc.helpers import symbolic, get_start_index, get_stop_index
+from dimpc.util import symbolic, get_start_index, get_stop_index
 
 
 class ModelParameters():
@@ -155,13 +155,13 @@ class DeliveryQuadrotorModel(NonlinearQuadrotorModel):
         ground = cs.SX(cs.vertcat(
             -CONTACT_DAMPER_FACTOR * v[0],
             -CONTACT_DAMPER_FACTOR * v[1],
-            -(CONTACT_SPRING_FACTOR * p[-1] + CONTACT_DAMPER_FACTOR * v[-1])
+            -(CONTACT_SPRING_FACTOR * p[2] + CONTACT_DAMPER_FACTOR * v[2])
         ))
 
         self._xdot = cs.SX(cs.vertcat(
             self._xdot,
             v,
-            ((1-u) @ acc + u @ g + sig @ ground) / param.m
+            (1-u) * acc + u * (g + sig*ground/param.m)
         ))
         self._x = cs.SX(cs.vertcat(self._x, p, v))
         self._u = cs.SX(cs.vertcat(self._u, u))
