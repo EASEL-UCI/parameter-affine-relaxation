@@ -1,6 +1,12 @@
 #!/usr/bin/python3
 
+from typing import List
+
 import casadi as cs
+import numpy as np
+
+BIG_POSITIVE_NUMBER = 10**9
+BIG_NEGATIVE_NUMBER = -10**9
 
 def get_sub_config(config: dict, id: str) -> dict:
     sub_config = {}
@@ -44,3 +50,33 @@ def get_stop_index(config: dict, id: str) -> int:
 
 def symbolic(config: dict, id: str) -> cs.SX:
     return cs.SX.sym(id, config[id]["dimensions"])
+
+def get_default_vector(config: dict, dimensions: int) -> List:
+    i = 0
+    vector = []
+    for config_id in config.keys():
+        vector += config[config_id]["default_value"]
+        i += config[config_id]["dimensions"]
+        if i > dimensions:
+            raise IndexError
+        elif i == dimensions:
+            return vector
+    raise IndexError
+
+def is_integer(config: dict, dimensions: int) -> List:
+    i = 0
+    is_integer = []
+    for config_id in config.keys():
+        if config[config_id]["member_type"] != int:
+            is_integer += [False] * config[config_id]["dimensions"]
+        else:
+            is_integer += [True] * config[config_id]["dimensions"]
+        i += config[config_id]["dimensions"]
+        if i > dimensions:
+            raise IndexError
+        elif i == dimensions:
+            return is_integer
+    raise IndexError
+
+def subtract_lists(x: List[float], y: List[float]) -> List[float]:
+    return (np.array(x) - np.array(y)).tolist()
