@@ -1,15 +1,16 @@
 #!/usr/bin/python3
 
+from copy import copy
 from typing import List, Union
 
 import casadi as cs
-import numpy as np
 
 from dimpc.models import NonlinearQuadrotorModel
-from dimpc.config import INPUT_CONFIG
+from dimpc.config import STATE_CONFIG, INPUT_CONFIG
+from dimpc.util import get_default_vector, is_integer, subtract_lists
 
 
-class DeliveryImplicitMPC():
+class MPC():
     def __init__(
         self,
         N: int,
@@ -20,20 +21,40 @@ class DeliveryImplicitMPC():
         model: NonlinearQuadrotorModel
     ) -> None:
         self._solver = self._init_minlp_solver(N, DT, Q, R, Qf, model)
+        self._model = model
+        self._N = N
 
     def solve(
         self,
-        x: List[float],
-        u: List[float],
+        x0: List[float],
+        xref: List[List[float]],
         lbx: List[float],
         ubx: List[float],
         lbu: List[float],
         ubu: List[float],
-        x_guess=None,
-        u_guess=None,
-    ):
-        lbw = []
-        ubw = []
+        xk_warmstart=None,
+        uk_warmstart=None,
+    ) -> dict:
+        lbw = copy(x0)
+        ubw = copy(x0)
+        if xk_warmstart == None:
+            xk_warmstart = (self._N + 1) * [copy(x0)]
+        if uk_warmstart == None:
+            uk_warmstart = self._N * \
+                [get_default_vector(INPUT_CONFIG, self._model.u.shape[0])]
+        warmstart = copy(subtract_lists(xk_warmstart[0], xref[0]))
+
+        for k in range(self._N):
+            lbw += copy(lbu + lbx)
+            ubw += copy(ubu + ubx)
+            warmstart += copy(
+                uk_warmstart[k] + subtract_lists(xk_warmstart[k+1], xref[k+1])
+            )
+
+        lbg = self._N * self._model.x.shape[0] * [0.0]
+        ubg = lbg
+        return self._solver(x0=warmstart, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
+
 
     def _get_objective(
         self,
@@ -96,9 +117,10 @@ class DeliveryImplicitMPC():
         x0 = cs.MX.sym("x0", model.x.shape)
 
         # Initialize parameter optimization inputs
+        is_discrete = [False] * x0.shape[0]
+
         w = [x0]
         g = []
-        is_integer = [False] * model.x.shape[0]
         J = 0.0
 
         # Formulate the MINLP
@@ -107,11 +129,7 @@ class DeliveryImplicitMPC():
             # New MINLP variable for the control
             uk = cs.MX.sym("u" + str(k), model.u.shape)
             w += [uk]
-            for sub_config in INPUT_CONFIG.values():
-                is_int = [False]
-                if sub_config["type"] == int or sub_config["member_type"] == int:
-                    is_int = [True]
-                is_integer += is_int * sub_config["dimensions"]
+            is_discrete += is_integer(INPUT_CONFIG, model.u.shape[0])
 
             # Integrate till the end of the interval
             Fk = F(x0=xk, u=uk)
@@ -119,9 +137,9 @@ class DeliveryImplicitMPC():
             J += Fk["cost"]
 
             # New MINLP variable for state at end of interval
-            xk = cs.MX.sym("x" + str(k+1), model.x.shape)
+            xk = cs.MX.sym("x" + str(k+1), xk.shape)
             w += [xk]
-            is_integer += [False] * model.x.shape[0]
+            is_discrete += [False] * xk.shape[0]
 
             # Add equality constraint
             g += [xf - xk]
@@ -134,4 +152,4 @@ class DeliveryImplicitMPC():
 
         # Create a MINLP solver
         minlp_prob = {"f": J, "x": w, "g": g}
-        return cs.nlpsol("nlp_solver", "bonmin", minlp_prob, {"discrete": is_integer})
+        return cs.nlpsol("nlp_solver", "bonmin", minlp_prob, {"discrete": is_discrete})
