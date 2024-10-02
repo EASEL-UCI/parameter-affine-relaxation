@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='dimpc',
+    name='par',
     version='0.0.0',
     packages=find_packages(include=[
-        'dimpc',
-        'dimpc.*'
+        'par',
+        'par.*'
     ]),
     install_requires=[
         'numpy==1.26.4',
