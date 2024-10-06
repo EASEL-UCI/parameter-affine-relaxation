@@ -42,9 +42,9 @@ class ModelParameters():
             self.k * self.r / self.Iyy,
             self.c / self.Izz,
             np.array((
-                (self.Izz-self.Iyy) / self.Ixx,
-                (self.Ixx-self.Izz) / self.Iyy,
-                (self.Iyy-self.Ixx) / self.Izz,
+                (self.Izz - self.Iyy) / self.Ixx,
+                (self.Ixx - self.Izz) / self.Iyy,
+                (self.Iyy - self.Ixx) / self.Izz,
             ))
         ))
 
@@ -79,7 +79,10 @@ class DynamicsModel():
 
     @property
     def ntheta(self) -> int:
-        return get_all_dimensions(PARAMETER_CONFIG)
+        if type(self) == ParameterAffineQuadrotorModel:
+            return get_all_dimensions(RELAXED_PARAMETER_CONFIG)
+        elif type(self) == NonlinearQuadrotorModel:
+            return get_all_dimensions(PARAMETER_CONFIG)
 
     def F(
         self,
@@ -93,7 +96,11 @@ class DynamicsModel():
             theta = self.get_default_parameter_vector()
         if is_none(w):
             w = np.zeros(self.nw)
-        return self.rk4(self.f, dt, x, u, w, theta)
+        xf = self.rk4(self.f, dt, x, u, w, theta)
+        if type(xf) == cs.DM:
+            return np.array(xf).flatten()
+        else:
+            return xf
 
     def f(
         self,
@@ -171,13 +178,13 @@ class NonlinearQuadrotorModel(DynamicsModel):
         # Control input terms
         u = symbolic("MOTOR_SPEED_SQUARED", INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
-            cs.SX.zeros(2, k.shape[0]),
-            k.reshape((1, k.shape[0])),
+            cs.SX.zeros(2, self.nu),
+            k.reshape((1, self.nu)),
         ))
         B = cs.SX(cs.vertcat(
-            (k * s).reshape((1, s.shape[0])),
-            (k * r).reshape((1, r.shape[0])),
-            c.reshape((1, c.shape[0])),
+            (k * s).reshape((1, self.nu)),
+            (k * r).reshape((1, self.nu)),
+            c.reshape((1, self.nu)),
         ))
 
         # Additive process noise
@@ -238,9 +245,9 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
 
         # Parameter-coupled dynamics
         G = cs.SX(cs.vertcat(
-            cs.SX.zeros(7, 6+4*self.nu),
-            cs.horzcat( K, -A, cs.SX.zeros(3, 3+3*self.nu) ),
-            cs.horzcat( cs.SX.zeros(3, 3+self.nu), C, -I ),
+            cs.SX.zeros(7, 6 + 4*self.nu),
+            cs.horzcat( -A, K, cs.SX.zeros(3, 3 + 3*self.nu) ),
+            cs.horzcat( cs.SX.zeros(3, 3 + self.nu), C, -I ),
         ))
 
         # Additive process noise
