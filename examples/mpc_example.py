@@ -11,9 +11,9 @@ nl_model = CrazyflieModel()
 Q = np.diag(np.hstack((
     10.0 * np.ones(3), 5.0 * np.ones(4), 1.0 * np.ones(6)
 )))
-R = 0.1 * np.eye(4)
-Qf = 10 * Q
-nmpc = NMPC(dt=0.1, N=30, Q=Q, R=R, Qf=Qf, model=nl_model)
+R = 0.01 * np.eye(4)
+Qf = 2.0 * Q
+nmpc = NMPC(dt=0.05, N=50, Q=Q, R=R, Qf=Qf, model=nl_model)
 
 pos0 = np.random.uniform(low=-2.0, high=2.0, size=3)
 att0 = random_unit_quat()
@@ -29,6 +29,5 @@ nmpc.solve(x=x0, lbu=lbu, ubu=ubu)
 et = time.time()
 
 print(f"computation time: {et-st}")
-xk = nmpc.get_state_trajectory()
 nmpc.plot_trajectory()
 
