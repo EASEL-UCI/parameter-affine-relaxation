@@ -61,7 +61,11 @@ class NMPC():
             ).flatten()]
         return np.array(input_traj)
 
-    def plot_trajectory(self) -> None:
+    def plot_trajectory(
+        self,
+        xk=None,
+        uk=None,
+    ) -> None:
         """
         Display the series of control inputs
         and trajectory over prediction horizon.
@@ -70,14 +74,16 @@ class NMPC():
         interp_N = 1000
         t = self._dt * np.arange(self._N)
 
-        uk = np.array(self.get_input_trajectory())
+        if is_none(uk):
+            uk = np.array(self.get_input_trajectory())
         legend = ["u1", "u2", "u3", "u4"]
         self._plot_trajectory(
             axs[0], t, uk, interp_N, legend,
             "squared motor\nang vel (rad/s)^2",
         )
 
-        xk = np.array(self.get_state_trajectory())
+        if is_none(xk):
+            xk = np.array(self.get_state_trajectory())
         legend = ["x", "y", "z"]
         self._plot_trajectory(
             axs[1], t, xk[:,:3], interp_N, legend,
