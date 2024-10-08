@@ -98,7 +98,7 @@ RELAXED_PARAMETER_CONFIG = {
 STATE_CONFIG = {
     "POSITION": {
         "dimensions": 3,
-        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "lower_bound": np.hstack((BIG_NEGATIVE * np.ones(2), 0.0)),
         "upper_bound": BIG_POSITIVE * np.ones(3),
         "default_value": np.zeros(3),
     },
