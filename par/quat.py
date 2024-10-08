@@ -29,7 +29,7 @@ def G(q: cs.SX) -> cs.SX:
     return L(q) @ H
 
 def Q(q: cs.SX) -> cs.SX:
-    return H.T @ R(q) @ L(q) @ H
+    return H.T @ R(q).T @ L(q) @ H
 
 def random_unit_quat():
     unscaled_quat = np.random.uniform(low=-1.0, high=1.0, size=4)
