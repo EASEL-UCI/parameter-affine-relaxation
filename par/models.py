@@ -8,7 +8,7 @@ import par.quat as quat
 from par.constants import GRAVITY
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
                        STATE_CONFIG, INPUT_CONFIG
-from par.config_utils import symbolic, get_all_dimensions
+from par.config_utils import symbolic, get_dimensions
 from par.misc_utils import is_none
 
 
@@ -67,22 +67,22 @@ class DynamicsModel():
 
     @property
     def nx(self) -> int:
-        return get_all_dimensions(STATE_CONFIG)
+        return get_dimensions(STATE_CONFIG)
 
     @property
     def nu(self) -> int:
-        return get_all_dimensions(INPUT_CONFIG)
+        return get_dimensions(INPUT_CONFIG)
 
     @property
     def nw(self) -> int:
-        return get_all_dimensions(STATE_CONFIG)
+        return get_dimensions(STATE_CONFIG)
 
     @property
     def ntheta(self) -> int:
         if type(self) == ParameterAffineQuadrotorModel:
-            return get_all_dimensions(RELAXED_PARAMETER_CONFIG)
+            return get_dimensions(RELAXED_PARAMETER_CONFIG)
         elif type(self) == NonlinearQuadrotorModel:
-            return get_all_dimensions(PARAMETER_CONFIG)
+            return get_dimensions(PARAMETER_CONFIG)
 
     def F(
         self,
@@ -254,7 +254,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         w = cs.SX.sym("w", self.nw)
 
         # Affine parameters
-        theta = symbolic("relaxed_parameters", RELAXED_PARAMETER_CONFIG)
+        theta = cs.SX.sym("relaxed_parameters", self.ntheta)
 
         # Continuous-time dynamics
         xdot = w + F + G @ theta

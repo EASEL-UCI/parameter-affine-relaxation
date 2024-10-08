@@ -9,7 +9,7 @@ import matplotlib
 
 from par.models import NonlinearQuadrotorModel, ParameterAffineQuadrotorModel
 from par.config import STATE_CONFIG, INPUT_CONFIG
-from par.config_utils import get_default_vector, get_subvector
+from par.config_utils import get_default_vector
 from par.misc_utils import is_none
 
 
@@ -35,10 +35,10 @@ class NMPC():
 
         self._lbg = None
         self._ubg = None
-        self._lbx = get_default_vector("lower_bound", model.nx, STATE_CONFIG)
-        self._ubx = get_default_vector("upper_bound", model.nx, STATE_CONFIG)
-        self._lbu = get_default_vector("lower_bound", model.nu, INPUT_CONFIG)
-        self._ubu = get_default_vector("upper_bound", model.nu, INPUT_CONFIG)
+        self._lbx = get_default_vector("lower_bound", STATE_CONFIG)
+        self._ubx = get_default_vector("upper_bound", STATE_CONFIG)
+        self._lbu = get_default_vector("lower_bound", INPUT_CONFIG)
+        self._ubu = get_default_vector("upper_bound", INPUT_CONFIG)
         self._solver = self._init_solver(xref)
 
     def get_state_trajectory(self) -> List[np.ndarray]:
@@ -123,28 +123,20 @@ class NMPC():
     ) -> dict:
         # Get default inequality constraints
         if is_none(lbx):
-            lbx = list(get_default_vector(
-                "lower_bound", self._model.nx, STATE_CONFIG
-            ))
+            lbx = list(get_default_vector("lower_bound", STATE_CONFIG))
         if is_none(ubx):
-            ubx = list(get_default_vector(
-                "upper_bound", self._model.nx, STATE_CONFIG
-            ))
+            ubx = list(get_default_vector("upper_bound", STATE_CONFIG))
         if is_none(lbu):
-            lbu = list(get_default_vector(
-                "lower_bound", self._model.nu, INPUT_CONFIG
-            ))
+            lbu = list(get_default_vector("lower_bound", INPUT_CONFIG))
         if is_none(ubu):
-            ubu = list(get_default_vector(
-                "upper_bound", self._model.nu, INPUT_CONFIG
-            ))
+            ubu = list(get_default_vector("upper_bound", INPUT_CONFIG))
 
         # Get default warmstart values
         if is_none(xk_guess):
             xk_guess = (self._N + 1) * [x]
         if is_none(uk_guess):
             uk_guess = self._N * [get_default_vector(
-                "default_value", self._model.nu, INPUT_CONFIG
+                "default_value", INPUT_CONFIG
             )]
 
         lbd = list(x)
@@ -168,7 +160,7 @@ class NMPC():
     ) -> dict:
         # New decision variable for state
         x0 = cs.SX.sym("x0", self._model.nx)
-        #New constant for parameters
+        # New constant for parameters
         theta = cs.SX.sym("theta", self._model.ntheta)
 
         # Variables for formulating nlp
@@ -181,9 +173,7 @@ class NMPC():
 
         # Get default reference state
         if is_none(xref):
-            xref = get_default_vector(
-                "default_value", self._model.nx, STATE_CONFIG
-            )
+            xref = get_default_vector("default_value", STATE_CONFIG)
 
         # Formulate the nlp
         xk = x0
