@@ -62,7 +62,10 @@ class DynamicsModel():
         return self._parameters
 
     @parameters.setter
-    def parameters(self, parameters: ModelParameters) -> None:
+    def parameters(
+        self,
+        parameters: ModelParameters
+    ) -> None:
         self._parameters = parameters
 
     @property
@@ -135,13 +138,12 @@ class DynamicsModel():
             xf += dt/6 * (k1 +2*k2 +2*k3 +k4)
         return xf
 
-    def get_default_parameter_vector(self) -> np.ndarray:
+    def check_parameters(self) -> None:
         if is_none(self._parameters):
             raise Exception("Model has no parameter values!")
-        if type(self) == ParameterAffineQuadrotorModel:
-            return self._parameters.affine_vector
-        elif type(self) == NonlinearQuadrotorModel:
-            return self._parameters.vector
+
+    def get_default_parameter_vector(self) -> None:
+        raise NotImplementedError("Parameter vector getter not implemented!")
 
 
 class NonlinearQuadrotorModel(DynamicsModel):
@@ -152,11 +154,15 @@ class NonlinearQuadrotorModel(DynamicsModel):
         super().__init__(parameters)
         self._set_model()
 
+    def get_default_parameter_vector(self) -> np.ndarray:
+        super().check_parameters()
+        return self._parameters.vector
+
     def _set_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
         q = symbolic("ATTITUDE", STATE_CONFIG)
         vB = symbolic("BODY_LINEAR_VELOCITY", STATE_CONFIG)
-        wB = symbolic("BODY_ANGULAR_VELOCITY", STATE_CONFIG,)
+        wB = symbolic("BODY_ANGULAR_VELOCITY", STATE_CONFIG)
         x = cs.SX(cs.vertcat(p, q, vB, wB))
 
         m = symbolic("m", PARAMETER_CONFIG)
@@ -212,6 +218,10 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
     ) -> None:
         super().__init__(parameters)
         self._set_affine_model()
+
+    def get_default_parameter_vector(self) -> np.ndarray:
+        super().check_parameters()
+        return self._parameters.affine_vector
 
     def _set_affine_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
