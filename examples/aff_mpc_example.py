@@ -37,13 +37,3 @@ aff_nmpc.solve(x=x0, lbu=lbu, ubu=ubu)
 et = time.time()
 print(f"computation time: {et-st}")
 aff_nmpc.plot_trajectory()
-
-
-xk = aff_nmpc.get_state_trajectory()
-uk = aff_nmpc.get_input_trajectory()
-xk_nl = []
-for k in range(len(uk)):
-    xk_nl += [ nl_model.F(dt=0.01, x=xk[k], u=uk[k]) ]
-xk_nl = np.array(xk_nl)
-aff_nmpc.plot_trajectory(xk=xk_nl, uk=uk)
-
