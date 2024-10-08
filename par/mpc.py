@@ -184,6 +184,10 @@ class NMPC():
             # Add running cost
             J += self._get_stage_cost(x=xk, u=uk, xref=xref)
 
+            # Add terminal cost
+            if k == self._N - 1:
+                J += self._get_terminal_cost(x=xk, xref=xref)
+
             # Get the state at the end of the time step
             xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
 
@@ -195,9 +199,6 @@ class NMPC():
             g += [xf - xk]
             lbg += self._model.nx * [0.0]
             ubg += self._model.nx * [0.0]
-
-        # Add terminal cost
-        J += self._get_terminal_cost(x=xk, xref=xref)
 
         # Concatenate decision variables and constraint terms
         d = cs.vertcat(*d)
@@ -227,7 +228,7 @@ class NMPC():
         xref: np.ndarray,
     ) -> cs.SX:
         err = x - xref
-        return err.T @ self._Qf @ err
+        return err.T @ (self._Qf - self._Q) @ err
 
     def _plot_trajectory(
         self,
