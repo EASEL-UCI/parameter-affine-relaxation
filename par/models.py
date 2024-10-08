@@ -56,6 +56,11 @@ class DynamicsModel():
     ) -> None:
         self._parameters = parameters
         self._f = None
+        self._ntheta = None
+        self._parameter_config = None
+        self._nx = get_dimensions(STATE_CONFIG)
+        self._nu = get_dimensions(INPUT_CONFIG)
+        self._nw = get_dimensions(STATE_CONFIG)
 
     @property
     def parameters(self) -> ModelParameters:
@@ -70,22 +75,23 @@ class DynamicsModel():
 
     @property
     def nx(self) -> int:
-        return get_dimensions(STATE_CONFIG)
+        return self._nx
 
     @property
     def nu(self) -> int:
-        return get_dimensions(INPUT_CONFIG)
+        return self._nu
 
     @property
     def nw(self) -> int:
-        return get_dimensions(STATE_CONFIG)
+        return self._nw
 
     @property
     def ntheta(self) -> int:
-        if type(self) == ParameterAffineQuadrotorModel:
-            return get_dimensions(RELAXED_PARAMETER_CONFIG)
-        elif type(self) == NonlinearQuadrotorModel:
-            return get_dimensions(PARAMETER_CONFIG)
+        return self._ntheta
+
+    @property
+    def parameter_config(self) -> dict:
+        return self._parameter_config
 
     def F(
         self,
@@ -152,6 +158,8 @@ class NonlinearQuadrotorModel(DynamicsModel):
         parameters=None,
     ) -> None:
         super().__init__(parameters)
+        self._parameter_config = PARAMETER_CONFIG
+        self._ntheta = get_dimensions(PARAMETER_CONFIG)
         self._set_model()
 
     def get_default_parameter_vector(self) -> np.ndarray:
@@ -217,6 +225,8 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         parameters=None,
     ) -> None:
         super().__init__(parameters)
+        self._parameter_config = RELAXED_PARAMETER_CONFIG
+        self._ntheta = get_dimensions(RELAXED_PARAMETER_CONFIG)
         self._set_affine_model()
 
     def get_default_parameter_vector(self) -> np.ndarray:
