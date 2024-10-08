@@ -39,6 +39,7 @@ class NMPC():
         self._ubx = get_default_vector("upper_bound", STATE_CONFIG)
         self._lbu = get_default_vector("lower_bound", INPUT_CONFIG)
         self._ubu = get_default_vector("upper_bound", INPUT_CONFIG)
+        self._uk_guess = N * [get_default_vector("default_value", INPUT_CONFIG)]
         self._solver = self._init_solver(xref)
 
     def get_state_trajectory(self) -> List[np.ndarray]:
@@ -123,21 +124,19 @@ class NMPC():
     ) -> dict:
         # Get default inequality constraints
         if is_none(lbx):
-            lbx = list(get_default_vector("lower_bound", STATE_CONFIG))
+            lbx = list(self._lbx)
         if is_none(ubx):
-            ubx = list(get_default_vector("upper_bound", STATE_CONFIG))
+            ubx = list(self._ubx)
         if is_none(lbu):
-            lbu = list(get_default_vector("lower_bound", INPUT_CONFIG))
+            lbu = list(self._lbu)
         if is_none(ubu):
-            ubu = list(get_default_vector("upper_bound", INPUT_CONFIG))
+            ubu = list(self._ubu)
 
         # Get default warmstart values
         if is_none(xk_guess):
             xk_guess = (self._N + 1) * [x]
         if is_none(uk_guess):
-            uk_guess = self._N * [get_default_vector(
-                "default_value", INPUT_CONFIG
-            )]
+            uk_guess = self._uk_guess
 
         lbd = list(x)
         ubd = list(x)
