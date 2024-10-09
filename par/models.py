@@ -9,7 +9,7 @@ from par.constants import GRAVITY
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
                        STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 from par.config_utils import symbolic, get_dimensions
-from par.misc_utils import is_none
+from par.misc_utils import is_none, get_alternating_ones
 
 
 class ModelParameters():
@@ -190,12 +190,12 @@ class NonlinearQuadrotorModel(DynamicsModel):
         u = symbolic("MOTOR_SPEED_SQUARED", INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
-            k.reshape((1, self.nu)),
+            k.T,
         ))
         B = cs.SX(cs.vertcat(
-            (k * s).reshape((1, self.nu)),
-            -(k * r).reshape((1, self.nu)),
-            cs.SX([[-1, 1, -1, 1]]) * c.reshape((1, self.nu)),
+            (k * s).T,
+            -(k * r).T,
+            cs.SX(get_alternating_ones(self.nu)).T * c.T,
         ))
 
         # Additive process noise
@@ -255,8 +255,11 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         A = cs.SX(cs.diag(vB))
         C = cs.SX(cs.vertcat(
             cs.horzcat( u.T, cs.SX.zeros(1,2*self.nu) ),
-            cs.horzcat( cs.SX.zeros(1,self.nu), u.T, cs.SX.zeros(1,self.nu) ),
-            cs.horzcat( cs.SX.zeros(1,2*self.nu), u.T ),
+            cs.horzcat(cs.SX.zeros(1,self.nu), -u.T, cs.SX.zeros(1,self.nu) ),
+            cs.horzcat(
+                cs.SX.zeros(1,2*self.nu),
+                cs.SX(get_alternating_ones(self.nu)).T * u.T
+            ),
         ))
         I = cs.SX(cs.diag(cs.vertcat(wB[1]*wB[2], wB[0]*wB[2], wB[0]*wB[1])))
 
