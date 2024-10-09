@@ -62,12 +62,12 @@ RELAXED_PARAMETER_CONFIG = {
         "lower_bound": np.zeros(4),
         "upper_bound": BIG_POSITIVE * np.zeros(4),
     },
-    "k*r/Ixx":   {
+    "k*s/Ixx":   {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
     },
-    "k*s/Iyy":   {
+    "k*r/Iyy":   {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
@@ -98,7 +98,7 @@ RELAXED_PARAMETER_CONFIG = {
 STATE_CONFIG = {
     "POSITION": {
         "dimensions": 3,
-        "lower_bound": np.hstack((BIG_NEGATIVE * np.ones(2), 0.0)),
+        "lower_bound": np.hstack((BIG_NEGATIVE * np.ones(3))),
         "upper_bound": BIG_POSITIVE * np.ones(3),
         "default_value": np.zeros(3),
     },
@@ -129,5 +129,14 @@ INPUT_CONFIG = {
         "lower_bound": np.zeros(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
         "default_value": np.zeros(4),
+    },
+}
+
+
+NOISE_CONFIG = {
+    "PROCESS_NOISE": {
+        "dimensions": 13,
+        "lower_bound": BIG_NEGATIVE * np.ones(13),
+        "upper_bound": BIG_POSITIVE * np.ones(13),
     },
 }
