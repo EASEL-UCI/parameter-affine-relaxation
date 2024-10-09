@@ -93,7 +93,7 @@ class NMPC():
 
         if is_none(xk):
             xk = np.array(self.get_state_trajectory())
-        elif len(xk) > len(uk):
+        if len(xk) > len(uk):
             xk = xk[:len(uk), :]
 
         legend = ["x", "y", "z"]
