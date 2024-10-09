@@ -60,8 +60,14 @@ def get_default_vector(
     i = 0
     vector = []
     for config_id in config.keys():
-        vector += list(config[config_id][id])
-        i += config[config_id]["dimensions"]
+        delta_i = config[config_id]["dimensions"]
+
+        if delta_i == 1:
+            vector += [config[config_id][id]]
+        elif delta_i > 1:
+            vector += list(config[config_id][id])
+
+        i += delta_i
         if i > dimensions:
             raise IndexError
         elif i == dimensions:
