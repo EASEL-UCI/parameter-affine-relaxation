@@ -7,7 +7,7 @@ import numpy as np
 import par.quat as quat
 from par.constants import GRAVITY
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
-                       STATE_CONFIG, INPUT_CONFIG
+                       STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 from par.config_utils import symbolic, get_dimensions
 from par.misc_utils import is_none
 
@@ -60,7 +60,7 @@ class DynamicsModel():
         self._parameter_config = None
         self._nx = get_dimensions(STATE_CONFIG)
         self._nu = get_dimensions(INPUT_CONFIG)
-        self._nw = get_dimensions(STATE_CONFIG)
+        self._nw = get_dimensions(NOISE_CONFIG)
 
     @property
     def parameters(self) -> ModelParameters:
@@ -135,14 +135,11 @@ class DynamicsModel():
         w: Union[np.ndarray, cs.SX],
         theta: Union[np.ndarray, cs.SX],
     ) -> Union[np.ndarray, cs.SX]:
-        xf = copy(x)
-        for i in range(1):
-            k1 = f(x, u, w, theta)
-            k2 = f(x + dt/2 * k1, u, w, theta)
-            k3 = f(x + dt/2 * k2, u, w, theta)
-            k4 = f(x + dt * k3, u, w, theta)
-            xf += dt/6 * (k1 +2*k2 +2*k3 +k4)
-        return xf
+        k1 = f(x, u, w, theta)
+        k2 = f(x + dt/2 * k1, u, w, theta)
+        k3 = f(x + dt/2 * k2, u, w, theta)
+        k4 = f(x + dt * k3, u, w, theta)
+        return x + dt/6 * (k1 +2*k2 +2*k3 +k4)
 
     def check_parameters(self) -> None:
         if is_none(self._parameters):
@@ -197,8 +194,8 @@ class NonlinearQuadrotorModel(DynamicsModel):
         ))
         B = cs.SX(cs.vertcat(
             (k * s).reshape((1, self.nu)),
-            (k * r).reshape((1, self.nu)),
-            c.reshape((1, self.nu)),
+            -(k * r).reshape((1, self.nu)),
+            cs.SX([[-1, 1, -1, 1]]) * c.reshape((1, self.nu)),
         ))
 
         # Additive process noise
