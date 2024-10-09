@@ -7,7 +7,7 @@ from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 import matplotlib
 
-from par.models import NonlinearQuadrotorModel, ParameterAffineQuadrotorModel
+from par.models import NonlinearQuadrotorModel
 from par.config import STATE_CONFIG, INPUT_CONFIG
 from par.config_utils import get_default_vector
 from par.misc_utils import is_none
@@ -42,17 +42,17 @@ class NMPC():
         self._uk_guess = N * [get_default_vector("default_value", INPUT_CONFIG)]
         self._solver = self._init_solver(xref)
 
-    def get_state_trajectory(self) -> List[np.ndarray]:
+    def get_state_trajectory(self) -> np.ndarray:
         nx = self._model.nx
         nu = self._model.nu
         state_traj = []
-        for k in range(self._N):
+        for k in range(self._N + 1):
             state_traj += [
                 np.array(self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten()
             ]
         return np.array(state_traj)
 
-    def get_input_trajectory(self) -> List[np.ndarray]:
+    def get_input_trajectory(self) -> np.ndarray:
         nx = self._model.nx
         nu = self._model.nu
         input_traj = []
@@ -66,17 +66,25 @@ class NMPC():
         self,
         xk=None,
         uk=None,
+        dt=None,
+        N=None,
     ) -> None:
         """
         Display the series of control inputs
         and trajectory over prediction horizon.
         """
-        fig, axs = plt.subplots(5, figsize=(11, 9))
+        if is_none(dt):
+            dt = self._dt
+        if is_none(N):
+            N = self._N
+
+        t = dt * np.arange(N)
         interp_N = 1000
-        t = self._dt * np.arange(self._N)
+        fig, axs = plt.subplots(5, figsize=(11, 9))
 
         if is_none(uk):
             uk = np.array(self.get_input_trajectory())
+
         legend = ["u1", "u2", "u3", "u4"]
         self._plot_trajectory(
             axs[0], t, uk, interp_N, legend,
@@ -85,6 +93,9 @@ class NMPC():
 
         if is_none(xk):
             xk = np.array(self.get_state_trajectory())
+        elif len(xk) > len(uk):
+            xk = xk[:len(uk), :]
+
         legend = ["x", "y", "z"]
         self._plot_trajectory(
             axs[1], t, xk[:,:3], interp_N, legend,
