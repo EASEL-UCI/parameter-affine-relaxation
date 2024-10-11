@@ -33,8 +33,8 @@ ubu = 0.15 * np.ones(4)
 
 pos0 = np.random.uniform(low=-10.0, high=10.0, size=3)
 att0 = random_unit_quat()
-vel0 = np.random.uniform(low=-5.0, high=5.0, size=3)
-angvel0 = np.random.uniform(low=-5.0, high=5.0, size=3)
+vel0 = np.random.uniform(low=-10.0, high=10.0, size=3)
+angvel0 = np.random.uniform(low=-10.0, high=10.0, size=3)
 x = np.hstack((pos0, att0, vel0, angvel0))
 xk_guess = None
 uk_guess = None
@@ -49,8 +49,8 @@ for k in range(sim_length):
     xk_guess = nl_nmpc.get_state_trajectory()
     uk_guess = nl_nmpc.get_input_trajectory()
     u = uk_guess[0, :]
-    w = np.random.normal(loc=0.0, scale=0.1, size=6)
-    w = np.hstack((np.zeros(7), w))
+    second_order_noise = np.random.normal(loc=1.0, scale=1.0, size=6)
+    w = np.hstack((np.zeros(7), second_order_noise))
 
     # Update current state and trajectory history
     x = nl_model.F(dt=dt, x=x, u=u, w=w)

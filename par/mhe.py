@@ -8,10 +8,9 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 from par.models import NonlinearQuadrotorModel, ParameterAffineQuadrotorModel
-from par.config_utils import get_default_vector, get_subvector
-from par.misc_utils import is_none, get_rk4_integrator
-from par.config import STATE_CONFIG, INPUT_CONFIG
-from par.constants import BIG_NEGATIVE, BIG_POSITIVE
+from par.config import STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
+from par.config_utils import get_default_vector
+from par.misc_utils import is_none
 
 
 # TODO: separate solver initialization and solver call
@@ -34,7 +33,14 @@ class MHPE():
         self._xk = []
         self._uk = []
         self._wk = []
-        self._theta = self._get_default_parameters()
+        self._lb_theta = get_default_vector(
+            "lower_bound", model.parameter_config
+        )
+        self._ub_theta = get_default_vector(
+            "upper_bound", model.parameter_config
+        )
+        self._lbw = get_default_vector("lower_bound", NOISE_CONFIG)
+        self._ubw = get_default_vector("upper_bound", NOISE_CONFIG)
 
     def get_parameter_estimate(self) -> np.ndarray:
         return self._theta
@@ -94,12 +100,8 @@ class MHPE():
         # Update the trajectory history
         self._update_measurements(xM, uM)
 
-        # Get discrete-time dynamics
-        F = get_rk4_integrator(name="F", dt=self._dt, model=self._model)
-
         # New decision variable for parameters
         theta = cs.SX("theta", self._model.ntheta)
-
         # New constant for initial state
         x0 = cs.SX("x0", self._model.nx)
 
@@ -127,7 +129,7 @@ class MHPE():
             p += [uk]
 
             # Get the state at the end of the time step
-            xf = F(xk, uk, theta, wk)
+            xf = self._model.F(xk, uk, theta, wk)
 
             # New constant for state at end of interval
             xk = cs.SX.sym("x" + str(k+1), xk.shape)
@@ -158,13 +160,13 @@ class MHPE():
 
         # Get default inequality constraints
         if is_none(lb_theta):
-            lb_theta = self._get_default_lower_bound(shape=self._model.ntheta)
+            lb_theta = self._lb_theta
         if is_none(ub_theta):
-            ub_theta = self._get_default_upper_bound(shape=self._model.ntheta)
+            ub_theta = self._ub_theta
         if is_none(lbw):
-            lbw = self._get_default_lower_bound(shape=self._model.nw)
+            lbw = self._lbw
         if is_none(ubw):
-            ubw = self._get_default_upper_bound(shape=self._model.nw)
+            ubw = self._ubw
 
         # Get default warmstart values
         if is_none(theta_warmstart):
@@ -211,24 +213,6 @@ class MHPE():
         for i in range(self._M):
             wk = self._sol["x"][1 + i*self._model.nw : 1 + (i+1)*self._model.nw]
             self._wk += [np.array(wk)]
-
-    def _get_default_lower_bound(
-        self,
-        shape: Union[int, Tuple[int, int]],
-    ) -> np.ndarray:
-        return BIG_NEGATIVE * np.ones(shape)
-
-    def _get_default_upper_bound(
-        self,
-        shape: Union[int, Tuple[int, int]],
-    ) -> np.ndarray:
-        return BIG_POSITIVE * np.ones(shape)
-
-    def _get_default_parameters(self) -> np.ndarray:
-        if type(self._model) == ParameterAffineQuadrotorModel:
-            return self._model.parameters.affine_vector
-        else:
-            return self._model.parameters.vector
 
     def _get_stage_cost(
         self,
