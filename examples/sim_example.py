@@ -9,7 +9,7 @@ from par.mhe import MHPE
 
 
 dt = 0.1
-N = 20
+N = 10
 Q = np.diag(np.hstack((
     10.0 * np.ones(3), 5.0 * np.ones(4), 1.0 * np.ones(6)
 )))
@@ -58,8 +58,8 @@ for k in range(sim_length):
     x = nl_model.F(dt=dt, x=x, u=u, w=w)
     xk += [x]
     uk += [u]
-    print(f"input {k}: \n{u}\n")
-    print(f"\nstate {k+1}: \n{x}\n")
+    print(f"\ninput {k}: \n{u}")
+    print(f"\n\n\nstate {k+1}: \n{x}")
 
 
 xk = np.array(xk)
