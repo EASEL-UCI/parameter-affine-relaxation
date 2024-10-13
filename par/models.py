@@ -6,9 +6,10 @@ import numpy as np
 import par.quat as quat
 from par.constants import GRAVITY
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
-                       STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
+                        STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 from par.config_utils import symbolic, get_dimensions
-from par.misc_utils import is_none, alternating_ones,
+from par.misc_utils import is_none
+from par.math_utils import alternating_ones
 
 
 class ModelParameters():
