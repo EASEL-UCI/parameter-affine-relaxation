@@ -23,7 +23,8 @@ class NMPC():
         R: np.ndarray,
         Qf: np.ndarray,
         model: NonlinearQuadrotorModel,
-        xref=None
+        xref=None,
+        is_verbose=False,
     ) -> None:
         self._dt = dt
         self._N = N
@@ -40,7 +41,7 @@ class NMPC():
         self._lbu = get_default_vector("lower_bound", INPUT_CONFIG)
         self._ubu = get_default_vector("upper_bound", INPUT_CONFIG)
         self._uk_guess = N * [get_default_vector("default_value", INPUT_CONFIG)]
-        self._solver = self._init_solver(xref)
+        self._solver = self._init_solver(xref, is_verbose)
 
     def get_state_trajectory(self) -> np.ndarray:
         nx = self._model.nx
@@ -166,7 +167,8 @@ class NMPC():
 
     def _init_solver(
         self,
-        xref=None
+        xref: Union[None, np.ndarray],
+        is_verbose: bool
     ) -> dict:
         # New decision variable for state
         x0 = cs.SX.sym("x0", self._model.nx)
@@ -222,7 +224,11 @@ class NMPC():
 
         # Create NLP solver
         nlp_prob = {"f": J, "x": d, "p": p, "g": g}
-        return cs.nlpsol("nlp_solver", "ipopt", nlp_prob,)
+        if is_verbose:
+            opts = {}
+        else:
+            opts = {'ipopt.print_level': 0, 'print_time': 0, 'ipopt.sb': 'yes'}
+        return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
 
     def _get_stage_cost(
         self,
