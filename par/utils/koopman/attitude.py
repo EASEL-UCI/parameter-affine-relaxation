@@ -21,7 +21,7 @@ def h(
     return cs.skew(gamma(J, v)) @ np.linalg.inv(J) - cs.skew(v)
 
 
-def get_Vs(
+def get_vs(
     v0: cs.SX,
     J: np.ndarray,
     Nv: int,
@@ -44,7 +44,7 @@ def get_Hs(
     J: np.ndarray,
     Nv: int,
 ) -> List[cs.SX]:
-    Vs = get_Vs(v0, J, Nv)
+    Vs = get_vs(v0, J, Nv)
     Hs = [cs.SX.eye(3)]
     for k in range(1, Nv):
         Hk = cs.SX.zeros(3)
