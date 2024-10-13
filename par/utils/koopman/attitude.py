@@ -53,7 +53,7 @@ def get_Hs(
     return Hs
 
 
-def get_attitude_input_matrix(
+def get_input_matrix(
     Hs: List[cs.SX],
     J: np.ndarray,
 ) -> cs.SX:
@@ -63,7 +63,7 @@ def get_attitude_input_matrix(
         Hs[i] = J_inv @ Hs[i]
     B = cs.SX()
     for i in range(3):
-        cs.vertcat(B, get_input_block(Hs, i))
+        B = cs.vertcat(B, get_input_block(Hs, i))
     return B
 
 
