@@ -9,7 +9,7 @@ from par.mhe import MHPE
 
 
 dt = 0.1
-N = 10
+N = 20
 Q = np.diag(np.hstack((
     10.0 * np.ones(3), 5.0 * np.ones(4), 1.0 * np.ones(6)
 )))
@@ -42,13 +42,15 @@ xk = [x]
 uk = []
 
 
-sim_length = 50
+sim_length = 100
 for k in range(sim_length):
     # Solve, update warmstarts, and get the control input
     nl_nmpc.solve(x=x, lbu=lbu, ubu=ubu, xk_guess=xk_guess, uk_guess=uk_guess)
     xk_guess = nl_nmpc.get_state_trajectory()
     uk_guess = nl_nmpc.get_input_trajectory()
     u = uk_guess[0, :]
+
+    # Generate Guassian noise on the second order terms
     second_order_noise = np.random.normal(loc=1.0, scale=1.0, size=6)
     w = np.hstack((np.zeros(7), second_order_noise))
 
@@ -56,6 +58,8 @@ for k in range(sim_length):
     x = nl_model.F(dt=dt, x=x, u=u, w=w)
     xk += [x]
     uk += [u]
+    print(f"input {k}: \n{u}\n")
+    print(f"\nstate {k+1}: \n{x}\n")
 
 
 xk = np.array(xk)
