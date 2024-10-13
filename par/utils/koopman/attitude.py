@@ -21,7 +21,7 @@ def h(
     return cs.skew(gamma(J, v)) @ np.linalg.inv(J) - cs.skew(v)
 
 
-def get_vs(
+def get_k_angular_velocities(
     v0: cs.SX,
     J: np.ndarray,
     Nv: int,
@@ -39,7 +39,7 @@ def get_vs(
     return vs
 
 
-def get_Hs(
+def get_k_Hs(
     vs: List[cs.SX],
     J: np.ndarray,
 ) -> List[cs.SX]:
