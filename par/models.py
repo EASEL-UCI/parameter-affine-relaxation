@@ -1,5 +1,4 @@
-from typing import Union, Callable
-from copy import copy
+from typing import Union, Callable, Tuple
 
 import casadi as cs
 import numpy as np
@@ -9,7 +8,7 @@ from par.constants import GRAVITY
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
                        STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 from par.config_utils import symbolic, get_dimensions
-from par.misc_utils import is_none, get_alternating_ones
+from par.misc_utils import is_none, alternating_ones,
 
 
 class ModelParameters():
@@ -195,7 +194,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         B = cs.SX(cs.vertcat(
             (k * s).T,
             -(k * r).T,
-            cs.SX(get_alternating_ones(self.nu)).T * c.T,
+            cs.SX(alternating_ones(self.nu)).T * c.T,
         ))
 
         # Additive process noise
@@ -258,7 +257,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
             cs.horzcat(cs.SX.zeros(1,self.nu), -u.T, cs.SX.zeros(1,self.nu) ),
             cs.horzcat(
                 cs.SX.zeros(1,2*self.nu),
-                cs.SX(get_alternating_ones(self.nu)).T * u.T
+                cs.SX(alternating_ones(self.nu)).T * u.T
             ),
         ))
         I = cs.SX(cs.diag(cs.vertcat(wB[1]*wB[2], wB[0]*wB[2], wB[0]*wB[1])))
