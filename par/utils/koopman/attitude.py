@@ -40,11 +40,10 @@ def get_vs(
 
 
 def get_Hs(
-    v0: cs.SX,
+    vs: List[cs.SX],
     J: np.ndarray,
-    Nv: int,
 ) -> List[cs.SX]:
-    vs = get_vs(v0, J, Nv)
+    Nv = len(vs)
     Hs = [cs.SX.eye(3)]
     for k in range(1, Nv):
         Hk = cs.SX.zeros(3)
@@ -55,19 +54,16 @@ def get_Hs(
 
 
 def get_attitude_input_matrix(
-    v0: cs.SX,
+    Hs: List[cs.SX],
     J: np.ndarray,
-    Nv: int,
 ) -> cs.SX:
+    Nv = len(Hs)
     J_inv = np.linalg.inv(J)
-
-    sub_blocks = get_Hs(v0, J, Nv)
-    for i in range(len(sub_blocks)):
-        sub_blocks[i] = J_inv @ sub_blocks[i]
-
+    for i in range(Nv):
+        Hs[i] = J_inv @ Hs[i]
     B = cs.SX()
     for i in range(3):
-        cs.vertcat(B, get_input_block(sub_blocks, i))
+        cs.vertcat(B, get_input_block(Hs, i))
     return B
 
 

@@ -1,19 +1,16 @@
-from typing import List, Tuple
+from typing import List
 
 import casadi as cs
 import numpy as np
 
 from par.utils.math import binomial_coefficient
-from par.utils.koopman.attitude import get_vs, get_Hs
 
 
 def get_gs(
     g0: cs.SX,
-    v0: cs.SX,
-    J: np.ndarray,
-    Ng: int,
+    vs: List[cs.SX],
 ) -> List[cs.SX]:
-    vs = get_vs(v0, J, Ng)
+    Ng = len(vs)
     gs = [g0]
     for k in range(1, Ng):
         gk = cs.SX.zeros(3)
@@ -24,15 +21,14 @@ def get_gs(
 
 
 def get_Gs(
-    g0: cs.SX,
-    v0: cs.SX,
+    gs: List[cs.SX],
+    vs: List[cs.SX],
+    Hs: List[cs.SX],
     J: np.ndarray,
-    Ng: int,
 ) -> List[cs.SX]:
+    assert len(gs) == len(vs) == len(Hs)
+    Ng = len(gs)
     inv_J = np.linalg.inv(J)
-    vs = get_vs(v0, J, Ng)
-    gs = get_gs(g0, v0, J, Ng)
-    Hs = get_Hs(v0, J, Ng)
     Gs = [cs.SX.zeros(3,3)]
     for k in range(1, Ng):
         Gk = cs.SX.zeros(3,3)
