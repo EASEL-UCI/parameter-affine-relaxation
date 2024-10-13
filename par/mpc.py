@@ -9,8 +9,8 @@ import matplotlib
 
 from par.models import NonlinearQuadrotorModel
 from par.config import STATE_CONFIG, INPUT_CONFIG
-from par.config_utils import get_default_vector
-from par.misc_utils import is_none
+from par.utils.config import get_default_vector
+from par.utils.misc import is_none
 
 
 # TODO: separate solver initialization and solver call

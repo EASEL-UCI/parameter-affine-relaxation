@@ -3,7 +3,7 @@ from typing import List
 import casadi as cs
 import numpy as np
 
-from par.misc_utils import is_none
+from par.utils.misc import is_none
 
 
 def get_sub_config(id: str, config: dict) -> dict:
