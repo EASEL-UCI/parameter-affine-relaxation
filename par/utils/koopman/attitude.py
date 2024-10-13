@@ -27,16 +27,16 @@ def get_vs(
     Nv: int,
 ) -> List[cs.SX]:
     J_inv = np.linalg.inv(J)
-    Vs = [v0]
+    vs = [v0]
     for k in range(1, Nv):
         summation = cs.SX.zeros(3)
         for n in range(k):
-            gamma_n = gamma(J, Vs[n])
+            gamma_n = gamma(J, vs[n])
             summation += binomial_coefficient(k-1, n) * \
-                            cs.skew(gamma_n) @ Vs[k-n-1]
+                            cs.skew(gamma_n) @ vs[k-n-1]
         vk = J_inv @ summation
-        Vs += [vk]
-    return Vs
+        vs += [vk]
+    return vs
 
 
 def get_Hs(
@@ -44,12 +44,12 @@ def get_Hs(
     J: np.ndarray,
     Nv: int,
 ) -> List[cs.SX]:
-    Vs = get_vs(v0, J, Nv)
+    vs = get_vs(v0, J, Nv)
     Hs = [cs.SX.eye(3)]
     for k in range(1, Nv):
         Hk = cs.SX.zeros(3)
         for n in range(k):
-            Hk += binomial_coefficient(k-1, n) * h(J, Vs[n]) @ Hs[k-n-1]
+            Hk += binomial_coefficient(k-1, n) * h(J, vs[n]) @ Hs[k-n-1]
         Hs += [Hk]
     return Hs
 
