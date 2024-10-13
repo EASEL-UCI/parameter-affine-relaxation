@@ -21,7 +21,7 @@ def binomial_coefficient(k: int, n: int) -> float:
     return fact(k) / ( fact(n) * fact(k-n) )
 
 
-def skew_symmetric(a: np.ndarray) -> np.ndarray:
+def skew(a: np.ndarray) -> np.ndarray:
     assert a.shape == (3,)
     return np.array([
         [ 0.0, -a[2], a[1] ],
