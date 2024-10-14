@@ -6,7 +6,7 @@ import numpy as np
 from par.utils.math import binomial_coefficient
 
 
-def get_k_gs(
+def get_gs(
     g0: cs.SX,
     vs: List[cs.SX],
 ) -> List[cs.SX]:
@@ -20,7 +20,7 @@ def get_k_gs(
     return gs
 
 
-def get_k_Gs(
+def get_Gs(
     gs: List[cs.SX],
     vs: List[cs.SX],
     Hs: List[cs.SX],

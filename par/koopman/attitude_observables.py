@@ -9,46 +9,48 @@ from par.koopman.misc import get_state_matrix, get_input_block
 
 def gamma(
     J: np.ndarray,
-    v: cs.SX,
+    angular_velocity: cs.SX,
 ) -> cs.SX:
-    return J @ v
+    return J @ angular_velocity
 
 
 def h(
     J: np.ndarray,
-    v: cs.SX,
+    angular_velocity: cs.SX,
 ) -> cs.SX:
-    return cs.skew(gamma(J, v)) @ np.linalg.inv(J) - cs.skew(v)
+    return cs.skew(gamma(J, angular_velocity)) @ np.linalg.inv(J) \
+        - cs.skew(angular_velocity)
 
 
-def get_k_angular_velocities(
-    v0: cs.SX,
+def get_angular_velocities(
+    angular_velocity_0: cs.SX,
     J: np.ndarray,
     Nv: int,
 ) -> List[cs.SX]:
     J_inv = np.linalg.inv(J)
-    vs = [v0]
+    angular_velocities = [angular_velocity_0]
     for k in range(1, Nv):
         summation = cs.SX.zeros(3)
         for n in range(k):
-            gamma_n = gamma(J, vs[n])
+            gamma_n = gamma(J, angular_velocities[n])
             summation += binomial_coefficient(k-1, n) * \
-                            cs.skew(gamma_n) @ vs[k-n-1]
-        vk = J_inv @ summation
-        vs += [vk]
-    return vs
+                            cs.skew(gamma_n) @ angular_velocities[k-n-1]
+        angular_velocity_k = J_inv @ summation
+        angular_velocities += [angular_velocity_k]
+    return angular_velocities
 
 
-def get_k_Hs(
-    vs: List[cs.SX],
+def get_Hs(
+    angular_velocities: List[cs.SX],
     J: np.ndarray,
 ) -> List[cs.SX]:
-    Nv = len(vs)
+    Nv = len(angular_velocities)
     Hs = [cs.SX.eye(3)]
     for k in range(1, Nv):
         Hk = cs.SX.zeros(3)
         for n in range(k):
-            Hk += binomial_coefficient(k-1, n) * h(J, vs[n]) @ Hs[k-n-1]
+            Hk += binomial_coefficient(k-1, n) * \
+                h(J, angular_velocities[n]) @ Hs[k-n-1]
         Hs += [Hk]
     return Hs
 
