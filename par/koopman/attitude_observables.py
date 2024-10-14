@@ -4,7 +4,7 @@ import casadi as cs
 import numpy as np
 
 from par.utils.math import binomial_coefficient
-from par.utils.koopman.misc import get_state_matrix, get_input_block
+from par.koopman.misc import get_state_matrix, get_input_block
 
 
 def gamma(
