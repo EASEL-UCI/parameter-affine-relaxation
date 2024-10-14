@@ -10,9 +10,9 @@ def get_gs(
     g0: cs.SX,
     vs: List[cs.SX],
 ) -> List[cs.SX]:
-    Ng = len(vs)
+    N = len(vs)
     gs = [g0]
-    for k in range(1, Ng):
+    for k in range(1, N):
         gk = cs.SX.zeros(3)
         for n in range(k):
             gk += binomial_coefficient(k-1, n) * cs.skew(vs[n]).T @ gs[k-n-1]
@@ -27,10 +27,10 @@ def get_Gs(
     J: np.ndarray,
 ) -> List[cs.SX]:
     assert len(gs) == len(vs) == len(Hs)
-    Ng = len(gs)
+    N = len(gs)
     inv_J = np.linalg.inv(J)
     Gs = [cs.SX.zeros(3,3)]
-    for k in range(1, Ng):
+    for k in range(1, N):
         Gk = cs.SX.zeros(3,3)
         for n in range(k):
             Gk += binomial_coefficient(k-1, n) * \
