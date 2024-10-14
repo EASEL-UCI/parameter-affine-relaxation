@@ -4,7 +4,6 @@ import casadi as cs
 import numpy as np
 
 from par.utils.math import binomial_coefficient
-from par.koopman.misc import get_state_matrix, get_input_block
 
 
 def gamma(
@@ -53,21 +52,3 @@ def get_Hs(
                 h(J, angular_velocities[n]) @ Hs[k-n-1]
         Hs += [Hk]
     return Hs
-
-
-def get_input_matrix(
-    Hs: List[cs.SX],
-    J: np.ndarray,
-) -> cs.SX:
-    N = len(Hs)
-    J_inv = np.linalg.inv(J)
-    for i in range(N):
-        Hs[i] = J_inv @ Hs[i]
-    B = cs.SX()
-    for i in range(3):
-        B = cs.vertcat(B, get_input_block(Hs, i))
-    return B
-
-
-def get_attitude_state_matrix(N: int) -> np.ndarray:
-    return get_state_matrix(N)

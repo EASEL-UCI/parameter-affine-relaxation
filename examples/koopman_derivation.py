@@ -13,7 +13,6 @@ angular_velocity_0 = cs.SX.sym("angular_velocity_0", 3)
 angular_velocities = attitude.get_angular_velocities(
     angular_velocity_0, J, NV)
 Hs = attitude.get_Hs(angular_velocities, J)
-B = attitude.get_input_matrix(Hs, J)
 print(f"{len(Hs)} x {Hs[-1].shape}  \n")
 
 
