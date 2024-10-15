@@ -1,4 +1,6 @@
-from typing import Any
+from typing import Any, Union, Tuple
+
+import numpy as np
 
 
 def is_none(a: Any) -> bool:
@@ -6,3 +8,9 @@ def is_none(a: Any) -> bool:
         return True
     else:
         return False
+
+
+def alternating_ones(shape: Union[int, Tuple[int]]) -> np.ndarray:
+    ones = np.ones(shape)
+    ones[::2] = -1.0
+    return ones

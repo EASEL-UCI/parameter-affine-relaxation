@@ -4,11 +4,6 @@ from math import factorial as fact
 import numpy as np
 
 
-def alternating_ones(shape: Union[int, Tuple[int]]) -> np.ndarray:
-    ones = np.ones(shape)
-    ones[::2] = -1.0
-    return ones
-
 
 def jordan_block(lam: float, n: int) -> np.ndarray:
     J = np.diag(lam * np.ones(n))
