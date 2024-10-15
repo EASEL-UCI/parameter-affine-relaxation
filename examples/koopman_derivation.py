@@ -35,7 +35,7 @@ Hs_Nz = attitude.get_Hs(angular_velocities_Nz, J)
 velocity_0 = cs.SX.sym("velocity_0", 3)
 velocities = velocity.get_velocities(
     velocity_0, angular_velocities_Nz)
-omegas = velocity.get_omegas(velocities)
+Os = velocity.get_Os(velocities)
 Vs = velocity.get_Vs(velocities, angular_velocities_Nz, Hs_Nz, J)
 print(f"{len(Vs)} x {Vs[-1].shape}  \n")
 

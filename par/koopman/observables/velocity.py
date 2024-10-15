@@ -21,18 +21,18 @@ def get_velocities(
     return velocities
 
 
-def get_omegas(
+def get_Os(
     velocities: List[cs.SX]
 ) -> List[cs.SX]:
-    omegas = [cs.SX.eye(3)]
+    Os = [cs.SX.eye(3)]
     N = len(velocities)
     for k in range(N):
-        omega_k = cs.SX.eye(3)
+        O_k = cs.SX.eye(3)
         for n in range(k):
-            omega_k += binomial_coefficient(k-1, n) * \
-                cs.skew(velocities[n-1]).T @ omegas[k-n-1]
-        omegas += [omega_k]
-    return omegas
+            O_k += binomial_coefficient(k-1, n) * \
+                cs.skew(velocities[n-1]).T @ Os[k-n-1]
+        Os += [O_k]
+    return Os
 
 
 def get_Vs(
