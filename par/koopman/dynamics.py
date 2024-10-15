@@ -3,9 +3,6 @@ from typing import List
 import casadi as cs
 import numpy as np
 
-from par.utils.math import jordan_block
-from par.koopman.observables import attitude, gravity, velocity
-
 
 def get_nominal_state_matrix(
     N: int,
