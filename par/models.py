@@ -4,8 +4,8 @@ import casadi as cs
 import numpy as np
 
 import par.quat as quat
-from par.utils.config import symbolic, koopman_symbolic, get_dimensions, \
-                            get_start_index, get_stop_index
+from par.utils.config import symbolic, get_dimensions, get_start_index, \
+                            get_stop_index
 from par.utils.misc import is_none, alternating_ones
 from par.koopman.dynamics import get_state_matrix, get_input_matrix
 from par.koopman.observables import attitude, gravity, velocity, position
@@ -60,6 +60,7 @@ class DynamicsModel():
         self._f = None
         self._ntheta = None
         self._parameter_config = None
+        self._observables_order = None
         self._nx = get_dimensions(STATE_CONFIG)
         self._nu = get_dimensions(INPUT_CONFIG)
         self._nw = get_dimensions(NOISE_CONFIG)
@@ -94,6 +95,10 @@ class DynamicsModel():
     @property
     def parameter_config(self) -> dict:
         return self._parameter_config
+
+    @property
+    def observables_order(self)-> int:
+        return self._observables_order
 
     def F(
         self,
@@ -300,6 +305,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         self._ntheta = get_dimensions(PARAMETER_CONFIG)
         self._nx = observables_order * get_dimensions(KOOPMAN_STATE_CONFIG)
         self._nw = self._nx
+        self._observables_order = observables_order
         self._set_lifted_model(initial_state, observables_order)
 
     def get_default_parameter_vector(self) -> np.ndarray:
@@ -324,10 +330,10 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
             get_start_index("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG) :
             get_stop_index("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG)])
 
-        pB = koopman_symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG, N)
-        vB = koopman_symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
-        gB = koopman_symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG, N)
-        wB = koopman_symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
+        pB = symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG, N)
+        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
+        gB = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG, N)
+        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
         x = cs.vertcat(pB, vB, gB, wB)
 
         m = symbolic("m", PARAMETER_CONFIG)

@@ -1,4 +1,3 @@
-from copy import copy
 from typing import List, Union
 
 import casadi as cs
@@ -7,8 +6,9 @@ from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 import matplotlib
 
-from par.models import NonlinearQuadrotorModel
-from par.config import STATE_CONFIG, INPUT_CONFIG
+from par.models import DynamicsModel, NonlinearQuadrotorModel, \
+                    ParameterAffineQuadrotorModel, KoopmanLiftedQuadrotorModel
+from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
 from par.utils.config import get_default_vector
 from par.utils.misc import is_none
 
@@ -22,7 +22,7 @@ class NMPC():
         Q: np.ndarray,
         R: np.ndarray,
         Qf: np.ndarray,
-        model: NonlinearQuadrotorModel,
+        model: DynamicsModel,
         xref=None,
         is_verbose=False,
     ) -> None:
@@ -69,6 +69,7 @@ class NMPC():
         uk=None,
         dt=None,
         N=None,
+        order=None,
     ) -> None:
         """
         Display the series of control inputs
@@ -184,8 +185,13 @@ class NMPC():
         J = 0.0
 
         # Get default reference state
-        if is_none(xref):
+        if is_none(xref) and (type(self._model) == NonlinearQuadrotorModel or \
+                              type(self._model) == ParameterAffineQuadrotorModel):
             xref = get_default_vector("default_value", STATE_CONFIG)
+        elif is_none(xref) and type(self._model) == KoopmanLiftedQuadrotorModel:
+            xref = get_default_vector(
+                "default_value", KOOPMAN_STATE_CONFIG, copies=self._model.observables_order)
+            print(xref.shape)
 
         # Formulate the nlp
         xk = x0

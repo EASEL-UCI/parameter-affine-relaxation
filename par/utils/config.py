@@ -48,18 +48,15 @@ def get_subvector(id: str, vector, config: dict):
     return vector[get_start_index(id, config) : get_stop_index(id, config)]
 
 
-def symbolic(id: str, config: dict) -> cs.SX:
-    return cs.SX.sym(id, config[id]["dimensions"])
-
-
-def koopman_symbolic(id: str, config: dict, N: int,) -> cs.SX:
-    return cs.SX.sym(id, N * config[id]["dimensions"])
+def symbolic(id: str, config: dict, copies=1) -> cs.SX:
+    return cs.SX.sym(id, copies * config[id]["dimensions"])
 
 
 def get_default_vector(
     id: str,
     config: dict,
     dimensions=None,
+    copies=1
 ) -> np.ndarray:
     if is_none(dimensions):
         dimensions = get_dimensions(config)
@@ -69,9 +66,9 @@ def get_default_vector(
         delta_i = config[config_id]["dimensions"]
 
         if delta_i == 1:
-            vector += [config[config_id][id]]
+            vector += copies * [config[config_id][id]]
         elif delta_i > 1:
-            vector += list(config[config_id][id])
+            vector += copies * list(config[config_id][id])
 
         i += delta_i
         if i > dimensions:
