@@ -9,7 +9,7 @@ import matplotlib
 from par.models import DynamicsModel, NonlinearQuadrotorModel, \
                     ParameterAffineQuadrotorModel, KoopmanLiftedQuadrotorModel
 from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
-from par.utils.config import get_default_vector
+from par.utils.config import get_default_vector, get_dimensions
 from par.utils.misc import is_none
 
 
@@ -36,8 +36,15 @@ class NMPC():
 
         self._lbg = None
         self._ubg = None
-        self._lbx = get_default_vector("lower_bound", STATE_CONFIG)
-        self._ubx = get_default_vector("upper_bound", STATE_CONFIG)
+
+        if type(model) == KoopmanLiftedQuadrotorModel:
+            self._lbx = get_default_vector(
+                "lower_bound", KOOPMAN_STATE_CONFIG, copies=model.order)
+            self._ubx = get_default_vector(
+                "upper_bound", KOOPMAN_STATE_CONFIG, copies=model.order)
+        else:
+            self._lbx = get_default_vector("lower_bound", STATE_CONFIG)
+            self._ubx = get_default_vector("upper_bound", STATE_CONFIG)
         self._lbu = get_default_vector("lower_bound", INPUT_CONFIG)
         self._ubu = get_default_vector("upper_bound", INPUT_CONFIG)
         self._uk_guess = N * [get_default_vector("default_value", INPUT_CONFIG)]
@@ -144,25 +151,34 @@ class NMPC():
             lbu = list(self._lbu)
         if is_none(ubu):
             ubu = list(self._ubu)
-
-        # Get default warmstart values
-        if is_none(xk_guess):
-            xk_guess = (self._N + 1) * [x]
         if is_none(uk_guess):
             uk_guess = self._uk_guess
+        if is_none(theta):
+                theta = self._model.get_default_parameter_vector()
 
-        lbd = list(x)
-        ubd = list(x)
+        if type(self._model) == KoopmanLiftedQuadrotorModel:
+            x_init = self._model.convert_nominal_to_koopman_initialization_state(x)
+            p = list(theta) + list(x_init)
+            x_lifted = self._model.convert_nominal_to_koopman_lifted_state(x)
+            lbd = list(x_lifted)
+            ubd = list(x_lifted)
+            if is_none(xk_guess):
+                x_lifted = x_lifted
+                xk_guess = (self._N + 1) * [x_lifted]
+        else:
+            p = theta
+            lbd = list(x)
+            ubd = list(x)
+            if is_none(xk_guess):
+                xk_guess = (self._N + 1) * [x]
+
         guess = list(xk_guess[0])
         for k in range(self._N):
             lbd += list(lbu) + list(lbx)
             ubd += list(ubu) + list(ubx)
             guess += list(uk_guess[k]) + list(xk_guess[k+1])
-
-        if is_none(theta):
-            theta = self._model.get_default_parameter_vector()
         self._sol = self._solver(
-            x0=guess, p=theta, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg
+            x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg
         )
         return self._sol
 
@@ -175,23 +191,24 @@ class NMPC():
         x0 = cs.SX.sym("x0", self._model.nx)
         # New constant for parameters
         theta = cs.SX.sym("theta", self._model.ntheta)
+        # New constant for koopman initialization
+        if type(self._model) == KoopmanLiftedQuadrotorModel:
+            x_init = cs.SX.sym("x_init", get_dimensions(KOOPMAN_STATE_CONFIG))
 
         # Variables for formulating nlp
         d = [x0]
-        p = [theta]
+        p = [theta, x_init]
         g = []
         lbg = []
         ubg = []
         J = 0.0
 
         # Get default reference state
-        if is_none(xref) and (type(self._model) == NonlinearQuadrotorModel or \
-                              type(self._model) == ParameterAffineQuadrotorModel):
-            xref = get_default_vector("default_value", STATE_CONFIG)
-        elif is_none(xref) and type(self._model) == KoopmanLiftedQuadrotorModel:
+        if is_none(xref) and type(self._model) == KoopmanLiftedQuadrotorModel:
             xref = get_default_vector(
-                "default_value", KOOPMAN_STATE_CONFIG, copies=self._model.observables_order)
-            print(xref.shape)
+                "default_value", KOOPMAN_STATE_CONFIG, copies=self._model.order)
+        elif is_none(xref):
+            xref = get_default_vector("default_value", STATE_CONFIG)
 
         # Formulate the nlp
         xk = x0
@@ -208,7 +225,10 @@ class NMPC():
                 J += self._get_terminal_cost(x=xk, xref=xref)
 
             # Get the state at the end of the time step
-            xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
+            if type(self._model) == KoopmanLiftedQuadrotorModel:
+                xf = self._model.F(self._dt, x=xk, u=uk, theta=theta, x_init=x_init)
+            else:
+                xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
 
             # New NLP variable for state at end of interval
             xk = cs.SX.sym("x" + str(k+1), self._model.nx)
@@ -231,9 +251,12 @@ class NMPC():
         # Create NLP solver
         nlp_prob = {"f": J, "x": d, "p": p, "g": g}
         if is_verbose:
-            opts = {}
+            opts = {"ipopt.hessian_approximation": "exact"}
         else:
-            opts = {'ipopt.print_level': 0, 'print_time': 0, 'ipopt.sb': 'yes'}
+            opts = {"ipopt.hessian_approximation": "exact",
+                "ipopt.print_level": 0, "print_time": 0, "ipopt.sb": "yes"}
+        #opts = {"error_on_fail": False}
+        #return cs.qpsol("nlp_solver", "qpoases", nlp_prob)
         return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
 
     def _get_stage_cost(

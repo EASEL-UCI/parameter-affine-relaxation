@@ -16,11 +16,11 @@ def get_sub_config(id: str, config: dict) -> dict:
     return sub_config
 
 
-def get_dimensions(config: dict) -> int:
+def get_dimensions(config: dict, copies=1) -> int:
     dims = 0
     for config_member in config.values():
         dims += config_member["dimensions"]
-    return dims
+    return copies * dims
 
 
 def get_start_or_end_index(id: str, config: dict, is_start: bool) -> int:
@@ -44,8 +44,15 @@ def get_stop_index(id: str, config: dict) -> int:
     return get_start_or_end_index(config=config, id=id, is_start=False)
 
 
-def get_subvector(id: str, vector, config: dict):
+def get_subvector(vector, id: str, config: dict) -> np.ndarray:
     return vector[get_start_index(id, config) : get_stop_index(id, config)]
+
+
+def insert_subvector(vector, subvector, id: str, config: dict, copies=1) -> np.ndarray:
+    start = copies * get_start_index(id, config)
+    stop = copies * get_stop_index(id, config)
+    vector[start : stop] = subvector
+    return vector
 
 
 def symbolic(id: str, config: dict, copies=1) -> cs.SX:

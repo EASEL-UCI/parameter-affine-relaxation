@@ -1,15 +1,15 @@
-from typing import Union, Callable
+from typing import Union, Callable, Tuple
 
 import casadi as cs
 import numpy as np
 
 import par.quat as quat
-from par.utils.config import symbolic, get_dimensions, get_start_index, \
-                            get_stop_index
-from par.utils.misc import is_none, alternating_ones
 from par.koopman.dynamics import get_state_matrix, get_input_matrix
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
+from par.utils.misc import is_none, alternating_ones, convert_casadi_to_numpy_vector
+from par.utils.config import symbolic, get_dimensions, get_subvector, \
+                                insert_subvector
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG,STATE_CONFIG, \
                         KOOPMAN_STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 
@@ -60,7 +60,7 @@ class DynamicsModel():
         self._f = None
         self._ntheta = None
         self._parameter_config = None
-        self._observables_order = None
+        self._order = 1
         self._nx = get_dimensions(STATE_CONFIG)
         self._nu = get_dimensions(INPUT_CONFIG)
         self._nw = get_dimensions(NOISE_CONFIG)
@@ -97,8 +97,8 @@ class DynamicsModel():
         return self._parameter_config
 
     @property
-    def observables_order(self)-> int:
-        return self._observables_order
+    def order(self)-> int:
+        return self._order
 
     def F(
         self,
@@ -154,6 +154,16 @@ class DynamicsModel():
 
     def get_default_parameter_vector(self) -> None:
         raise NotImplementedError("Parameter vector getter not implemented!")
+
+    def get_substates(
+        self,
+        x: np.ndarray,
+    ) -> Tuple[np.ndarray]:
+        p = get_subvector(x, "POSITION", STATE_CONFIG)
+        q = get_subvector(x, "ATTITUDE", STATE_CONFIG)
+        v = get_subvector(x, "BODY_LINEAR_VELOCITY", STATE_CONFIG)
+        w = get_subvector(x, "BODY_ANGULAR_VELOCITY", STATE_CONFIG)
+        return p, q, v, w
 
 
 class NonlinearQuadrotorModel(DynamicsModel):
@@ -296,7 +306,6 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
 class KoopmanLiftedQuadrotorModel(DynamicsModel):
     def __init__(
         self,
-        initial_state: np.ndarray,
         observables_order: int,
         parameters=None,
     ) -> None:
@@ -305,35 +314,133 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         self._ntheta = get_dimensions(PARAMETER_CONFIG)
         self._nx = observables_order * get_dimensions(KOOPMAN_STATE_CONFIG)
         self._nw = self._nx
-        self._observables_order = observables_order
-        self._set_lifted_model(initial_state, observables_order)
+        self._order = observables_order
+        self._set_lifted_model()
 
     def get_default_parameter_vector(self) -> np.ndarray:
         super().check_parameters()
         return self._parameters.vector
 
-    def _set_lifted_model(
+    def F(
         self,
-        x_init: np.ndarray,
-        N: int,
-    ) -> None:
-        pB_init = cs.SX(x_init[
-            get_start_index("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG) :
-            get_stop_index("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG)])
-        vB_init = cs.SX(x_init[
-            get_start_index("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG) :
-            get_stop_index("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG)])
-        gB_init = cs.SX(x_init[
-            get_start_index("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG) :
-            get_stop_index("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG)])
-        wB_init = cs.SX(x_init[
-            get_start_index("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG) :
-            get_stop_index("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG)])
+        dt: float,
+        x: Union[np.ndarray, cs.SX],
+        u: Union[np.ndarray, cs.SX],
+        x_init: Union[np.ndarray, cs.SX],
+        w=None,
+        theta=None,
+    ) -> Union[np.ndarray, cs.SX]:
+        if is_none(theta):
+            theta = self.get_default_parameter_vector()
+        if is_none(w):
+            w = np.zeros(self.nw)
+        xf = self.rk4(self.f, dt, x, u, w, theta, x_init)
+        if type(xf) == cs.DM:
+            return np.array(xf).flatten()
+        else:
+            return xf
 
-        pB = symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG, N)
-        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
-        gB = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG, N)
-        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
+    def f(
+        self,
+        x: Union[np.ndarray, cs.SX],
+        u: Union[np.ndarray, cs.SX],
+        x_init: Union[np.ndarray, cs.SX],
+        w=None,
+        theta=None,
+    ) -> Union[np.ndarray, cs.SX]:
+        if is_none(self._f):
+            raise Exception("Model has no continuous-time dynamics!")
+        if is_none(theta):
+            theta = self.get_default_parameter_vector()
+        if is_none(w):
+            w = np.zeros(self.nw)
+        return self._f(x, u, w, theta, x_init)
+
+    def rk4(
+        self,
+        f: Callable,
+        dt: float,
+        x: Union[np.ndarray, cs.SX],
+        u: Union[np.ndarray, cs.SX],
+        w: Union[np.ndarray, cs.SX],
+        theta: Union[np.ndarray, cs.SX],
+        x_init: Union[np.ndarray, cs.SX],
+    ) -> Union[np.ndarray, cs.SX]:
+        k1 = f(x, u, x_init, w, theta)
+        k2 = f(x + dt/2 * k1, u, x_init, w, theta)
+        k3 = f(x + dt/2 * k2, u, x_init, w, theta)
+        k4 = f(x + dt * k3, u, x_init, w, theta)
+        return x + dt/6 * (k1 +2*k2 +2*k3 +k4)
+
+    def convert_nominal_to_koopman_lifted_state(
+        self,
+        x: np.ndarray,
+    ) -> np.ndarray:
+        p, q, v, w = self.get_substates(x)
+
+        rot = quat.Q(q)
+        p_body = rot.T @ p
+        g_body = rot.T @ np.array([0, 0, -GRAVITY])
+        theta = self.get_default_parameter_vector()
+        J = np.diag(np.hstack((
+            get_subvector(theta, "Ixx", PARAMETER_CONFIG),
+            get_subvector(theta, "Iyy", PARAMETER_CONFIG),
+            get_subvector(theta, "Izz", PARAMETER_CONFIG),
+        )))
+
+        ws = attitude.get_ws(w, J, self.order)
+        ps = position.get_ps(p_body, ws)
+        vs = velocity.get_vs(v, ws)
+        gs = gravity.get_gs(g_body, ws)
+
+        ws_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*ws))
+        ps_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*ps))
+        vs_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*vs))
+        gs_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*gs))
+
+        x_lifted = np.zeros(get_dimensions(KOOPMAN_STATE_CONFIG, copies=self.order))
+        x_lifted = insert_subvector(x_lifted, ps_stacked,
+            "BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG, copies=self.order)
+        x_lifted = insert_subvector(x_lifted, vs_stacked,
+            "BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG, copies=self.order)
+        x_lifted = insert_subvector(x_lifted, gs_stacked,
+            "BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG, copies=self.order)
+        x_lifted = insert_subvector(x_lifted, ws_stacked,
+            "BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG, copies=self.order)
+        return x_lifted
+
+    def convert_nominal_to_koopman_initialization_state(
+        self,
+        x: np.ndarray,
+    ) -> np.ndarray:
+        p, q, v, w = self.get_substates(x)
+
+        rot = quat.Q(q)
+        p_body = rot.T @ p
+        g_body= rot.T @ np.array([0, 0, -GRAVITY])
+
+        x_init = np.zeros(get_dimensions(KOOPMAN_STATE_CONFIG))
+        x_init = insert_subvector(
+            x_init, p_body, "BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG)
+        x_init = insert_subvector(
+            x_init, v, "BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG)
+        x_init = insert_subvector(
+            x_init, g_body, "BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG)
+        x_init = insert_subvector(
+            x_init, w, "BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG)
+        return x_init
+
+    def _set_lifted_model(self) -> None:
+        pB_init = symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG)
+        vB_init = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG)
+        gB_init = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG)
+        wB_init = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG)
+        x_init = cs.vertcat(pB_init, vB_init, gB_init, wB_init)
+
+        pB = symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG, self._order)
+        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG, self._order)
+        gB = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG, self._order)
+        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG, self._order)
         x = cs.vertcat(pB, vB, gB, wB)
 
         m = symbolic("m", PARAMETER_CONFIG)
@@ -350,7 +457,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
         # Derive Koopman observables
-        ws_N = attitude.get_ws(wB_init, J, N)
+        ws_N = attitude.get_ws(wB_init, J, self._order)
         Hs_N = attitude.get_Hs(ws_N, J)
 
         ps = position.get_ps(pB_init, ws_N)
@@ -363,7 +470,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         gs = gravity.get_gs(gB_init, ws_N)
         Gs = gravity.get_Gs(gs, ws_N, Hs_N, J)
 
-        ws = attitude.get_ws(wB_init, J, N)
+        ws = attitude.get_ws(wB_init, J, self._order)
         Hs = attitude.get_Hs(ws, J)
 
         # Control input terms
@@ -383,13 +490,13 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
 
         # Continuous-time dynamics
         B = cs.SX( get_input_matrix(Ps, Os, Vs, Gs, Hs, J, m) @ cs.vertcat(K, C) )
-        A = cs.SX( get_state_matrix(N, N) )
+        A = cs.SX( get_state_matrix(self._order, self._order) )
         xdot = A @ x + B @ u + w
 
         # Define dynamics function
         self._f = cs.Function(
             "f_KoopmanLiftedQuadrotorModel",
-            [x, u, w, theta], [xdot]
+            [x, u, w, theta, x_init], [xdot]
         )
 
 

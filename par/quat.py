@@ -1,6 +1,8 @@
 import casadi as cs
 import numpy as np
 
+from par.utils.math import skew
+
 
 H = np.vstack((
     np.zeros((1,3)),
@@ -16,10 +18,16 @@ def L_or_R(q: cs.SX, is_L: bool) -> cs.SX:
         sign = -1
     else:
         sign = 1
-    return cs.SX(cs.vertcat(
-        cs.horzcat(scalar, -vector.T),
-        cs.horzcat(vector, scalar*cs.SX.eye(3) + sign*cs.skew(vector))
-    ))
+    if type(q) == cs.SX:
+        return cs.SX(cs.vertcat(
+            cs.horzcat(scalar, -vector.T),
+            cs.horzcat(vector, scalar * cs.SX.eye(3) + sign * cs.skew(vector))
+        ))
+    elif type(q) == np.ndarray:
+        return np.vstack((
+            np.hstack((scalar, -vector)),
+            np.column_stack((vector, scalar * np.eye(3) + sign * skew(vector))),
+        ))
 
 
 def L(q: cs.SX) -> cs.SX:

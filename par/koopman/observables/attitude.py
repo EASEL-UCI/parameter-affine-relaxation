@@ -30,7 +30,8 @@ def get_ws(
         summation = cs.SX.zeros(3)
         for n in range(k):
             gamma_n = gamma(J, ws[n])
-            summation += binomial_coefficient(k-1, n) * cs.skew(gamma_n) @ ws[k-n-1]
+            summation += binomial_coefficient(k-1, n) * \
+                        cs.skew(gamma_n) @ ws[k-n-1]
         wk = J_inv @ summation
         ws += [wk]
     return ws
