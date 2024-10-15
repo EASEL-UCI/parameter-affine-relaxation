@@ -1,56 +1,51 @@
 from typing import List
 
 import casadi as cs
-import numpy as np
 
 from par.utils.math import binomial_coefficient
 
 
-def get_velocities(
-    velocity_0: cs.SX,
-    angular_velocities: List[cs.SX],
+def get_vs(
+    v0: cs.SX,
+    ws: List[cs.SX],
 ) -> List[cs.SX]:
-    velocities = [velocity_0]
-    N = len(angular_velocities)
+    vs = [v0]
+    N = len(ws)
     for k in range(1, N):
-        velocity_k = cs.SX.zeros(3)
+        vk = cs.SX.zeros(3)
         for n in range(k):
-            velocity_k += binomial_coefficient(k-1, n) * \
-                        cs.skew(angular_velocities[n]).T @ velocities[k-n-1]
-        velocities += [velocity_k]
-    return velocities
+            vk += binomial_coefficient(k-1, n) * cs.skew(ws[n]).T @ vs[k-n-1]
+        vs += [vk]
+    return vs
 
 
 def get_Os(
-    velocities: List[cs.SX]
+    vs: List[cs.SX]
 ) -> List[cs.SX]:
+    N = len(vs)
     Os = [cs.SX.eye(3)]
-    N = len(velocities)
-    for k in range(N):
-        O_k = cs.SX.eye(3)
+    for k in range(1, N):
+        Ok = cs.SX.zeros(3, 3)
         for n in range(k):
-            O_k += binomial_coefficient(k-1, n) * \
-                cs.skew(velocities[n-1]).T @ Os[k-n-1]
-        Os += [O_k]
+            Ok += binomial_coefficient(k-1, n) * cs.skew(vs[n-1]).T @ Os[k-n-1]
+        Os += [Ok]
     return Os
 
 
 def get_Vs(
-    velocities: List[cs.SX],
-    angular_velocities: List[cs.SX],
+    vs: List[cs.SX],
+    ws: List[cs.SX],
     Hs: List[cs.SX],
-    J: np.ndarray,
+    J: cs.SX,
 ) -> List[cs.SX]:
-    assert len(velocities) == len(angular_velocities) == len(Hs)
-    N = len(velocities)
-    inv_J = np.linalg.inv(J)
-    Vs = [cs.SX.zeros(3,3)]
+    assert len(vs) == len(ws) == len(Hs)
+    N = len(vs)
+    J_inv = cs.inv(J)
+    Vs = [cs.SX.zeros((3,3))]
     for k in range(1, N):
-        Vk = cs.SX.zeros(3,3)
+        Vk = cs.SX.zeros((3,3))
         for n in range(k):
-            Vk += binomial_coefficient(k-1, n) * \
-                cs.skew(velocities[n]).T @ inv_J @ Hs[k-n-1]
-            Vk += binomial_coefficient(k-1, n) * \
-                cs.skew(angular_velocities[n]).T @ inv_J @ Vs[k-n-1]
+            Vk += binomial_coefficient(k-1, n) * cs.skew(vs[n]).T @ J_inv @ Hs[k-n-1]
+            Vk += binomial_coefficient(k-1, n) * cs.skew(ws[n]).T @ J_inv @ Vs[k-n-1]
         Vs += [Vk]
     return Vs

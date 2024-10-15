@@ -52,6 +52,10 @@ def symbolic(id: str, config: dict) -> cs.SX:
     return cs.SX.sym(id, config[id]["dimensions"])
 
 
+def koopman_symbolic(id: str, config: dict, N: int,) -> cs.SX:
+    return cs.SX.sym(id, N * config[id]["dimensions"])
+
+
 def get_default_vector(
     id: str,
     config: dict,

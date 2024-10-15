@@ -2,15 +2,16 @@ from typing import List
 
 import casadi as cs
 import numpy as np
+from scipy.linalg import block_diag
 
 
 def get_nominal_state_matrix(
     N: int,
 ) -> np.ndarray:
-    A1 = np.zeros((3*N, 3))
-    A2 = np.eye(3 * (N-1))
-    A3 = np.zeros((3, 3))
-    return np.hstack(( A1, np.vstack((A2, A3)) ))
+    A1 = np.zeros((3*(N-1), 3))
+    A2 = np.eye(3*(N-1))
+    A3 = np.zeros((3, 3*N))
+    return np.vstack(( np.hstack((A1, A2)), A3) )
 
 
 def get_attitude_state_matrix(N: int) -> cs.SX:
@@ -19,9 +20,9 @@ def get_attitude_state_matrix(N: int) -> cs.SX:
 
 def get_attitude_input_matrix(
     Hs: List[cs.SX],
-    J: np.ndarray,
+    J: cs.SX,
 ) -> cs.SX:
-    J_inv = np.linalg.inv(J)
+    J_inv = cs.inv(J)
     N = len(Hs)
     B = cs.SX()
     for k in range(N):
@@ -55,3 +56,26 @@ def get_translational_input_matrix(
         Bv = cs.vertcat( Bv, cs.horzcat( Os[k]/m, -Vs[k] ) )
         Bg = cs.vertcat( Bg, cs.horzcat( cs.SX.zeros(3,3), -Gs[k] ) )
     return cs.vertcat(Bp, Bv, Bg)
+
+
+def get_state_matrix(
+    Np: int,
+    Nw: int,
+) -> np.ndarray:
+    Ap = get_translational_state_matrix(Np)
+    Aw = get_attitude_state_matrix(Nw)
+    return block_diag(Aw, Ap)
+
+
+def get_input_matrix(
+    Ps: List[cs.SX],
+    Os: List[cs.SX],
+    Vs: List[cs.SX],
+    Gs: List[cs.SX],
+    Hs: List[cs.SX],
+    J: cs.SX,
+    m: float,
+) -> cs.SX:
+    B_translational = get_translational_input_matrix(Ps, Os, Vs, Gs, m)
+    B_attitude = get_attitude_input_matrix(Hs, J)
+    return cs.vertcat(B_translational, B_attitude)

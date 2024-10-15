@@ -1,7 +1,6 @@
 from typing import List
 
 import casadi as cs
-import numpy as np
 
 from par.utils.math import binomial_coefficient
 
@@ -24,18 +23,18 @@ def get_Gs(
     gs: List[cs.SX],
     vs: List[cs.SX],
     Hs: List[cs.SX],
-    J: np.ndarray,
+    J: cs.SX,
 ) -> List[cs.SX]:
     assert len(gs) == len(vs) == len(Hs)
     N = len(gs)
-    inv_J = np.linalg.inv(J)
-    Gs = [cs.SX.zeros(3,3)]
+    J_inv = cs.inv(J)
+    Gs = [cs.SX.zeros((3,3))]
     for k in range(1, N):
-        Gk = cs.SX.zeros(3,3)
+        Gk = cs.SX.zeros((3,3))
         for n in range(k):
             Gk += binomial_coefficient(k-1, n) * \
-                    cs.skew(gs[n]).T @ inv_J @ Hs[k-n-1]
+                cs.skew(gs[n]).T @ J_inv @ Hs[k-n-1]
             Gk += binomial_coefficient(k-1, n) * \
-                    cs.skew(vs[n]).T @ inv_J @ Gs[k-n-1]
+                cs.skew(vs[n]).T @ J_inv @ Gs[k-n-1]
         Gs += [Gk]
     return Gs

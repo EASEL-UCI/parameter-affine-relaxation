@@ -1,54 +1,50 @@
 from typing import List
 
 import casadi as cs
-import numpy as np
 
 from par.utils.math import binomial_coefficient
 
 
 def gamma(
-    J: np.ndarray,
-    angular_velocity: cs.SX,
+    J: cs.SX,
+    w: cs.SX,
 ) -> cs.SX:
-    return J @ angular_velocity
+    return J @ w
 
 
 def h(
-    J: np.ndarray,
-    angular_velocity: cs.SX,
+    J: cs.SX,
+    w: cs.SX,
 ) -> cs.SX:
-    return cs.skew(gamma(J, angular_velocity)) @ np.linalg.inv(J) \
-        - cs.skew(angular_velocity)
+    return cs.skew(gamma(J, w)) @ cs.inv(J) - cs.skew(w)
 
 
-def get_angular_velocities(
-    angular_velocity_0: cs.SX,
-    J: np.ndarray,
+def get_ws(
+    w0: cs.SX,
+    J: cs.SX,
     N: int,
 ) -> List[cs.SX]:
-    J_inv = np.linalg.inv(J)
-    angular_velocities = [angular_velocity_0]
+    J_inv = cs.inv(J)
+    ws = [cs.SX(w0)]
     for k in range(1, N):
         summation = cs.SX.zeros(3)
         for n in range(k):
-            gamma_n = gamma(J, angular_velocities[n])
-            summation += binomial_coefficient(k-1, n) * \
-                            cs.skew(gamma_n) @ angular_velocities[k-n-1]
-        angular_velocity_k = J_inv @ summation
-        angular_velocities += [angular_velocity_k]
-    return angular_velocities
+            gamma_n = gamma(J, ws[n])
+            summation += binomial_coefficient(k-1, n) * cs.skew(gamma_n) @ ws[k-n-1]
+        wk = J_inv @ summation
+        ws += [wk]
+    return ws
 
 
 def get_Hs(
-    angular_velocities: List[cs.SX],
-    J: np.ndarray,
+    ws: List[cs.SX],
+    J: cs.SX,
 ) -> List[cs.SX]:
-    N = len(angular_velocities)
+    N = len(ws)
     Hs = [cs.SX.eye(3)]
     for k in range(1, N):
-        Hk = cs.SX.zeros(3)
+        Hk = cs.SX.zeros((3,3))
         for n in range(k):
-            Hk += binomial_coefficient(k-1, n) * \
-                h(J, angular_velocities[n]) @ Hs[k-n-1]
+            Hk += binomial_coefficient(k-1, n) * h(J, ws[n]) @ Hs[k-n-1]
         Hs += [Hk]
     return Hs

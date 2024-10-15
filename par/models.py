@@ -1,14 +1,17 @@
-from typing import Union, Callable, Tuple
+from typing import Union, Callable
 
 import casadi as cs
 import numpy as np
 
 import par.quat as quat
-from par.constants import GRAVITY
-from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
-                        STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
-from par.utils.config import symbolic, get_dimensions
+from par.utils.config import symbolic, koopman_symbolic, get_dimensions, \
+                            get_start_index, get_stop_index
 from par.utils.misc import is_none, alternating_ones
+from par.koopman.dynamics import get_state_matrix, get_input_matrix
+from par.koopman.observables import attitude, gravity, velocity, position
+from par.constants import GRAVITY
+from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG,STATE_CONFIG, \
+                        KOOPMAN_STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 
 
 class ModelParameters():
@@ -281,6 +284,105 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         # Define dynamics function
         self._f = cs.Function(
             "f_ParameterAffineQuadrotorModel",
+            [x, u, w, theta], [xdot]
+        )
+
+
+class KoopmanLiftedQuadrotorModel(DynamicsModel):
+    def __init__(
+        self,
+        initial_state: np.ndarray,
+        observables_order: int,
+        parameters=None,
+    ) -> None:
+        super().__init__(parameters)
+        self._parameter_config = PARAMETER_CONFIG
+        self._ntheta = get_dimensions(PARAMETER_CONFIG)
+        self._nx = observables_order * get_dimensions(KOOPMAN_STATE_CONFIG)
+        self._nw = self._nx
+        self._set_lifted_model(initial_state, observables_order)
+
+    def get_default_parameter_vector(self) -> np.ndarray:
+        super().check_parameters()
+        return self._parameters.vector
+
+    def _set_lifted_model(
+        self,
+        x_init: np.ndarray,
+        N: int,
+    ) -> None:
+        pB_init = cs.SX(x_init[
+            get_start_index("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG) :
+            get_stop_index("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG)])
+        vB_init = cs.SX(x_init[
+            get_start_index("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG) :
+            get_stop_index("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG)])
+        gB_init = cs.SX(x_init[
+            get_start_index("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG) :
+            get_stop_index("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG)])
+        wB_init = cs.SX(x_init[
+            get_start_index("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG) :
+            get_stop_index("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG)])
+
+        pB = koopman_symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG, N)
+        vB = koopman_symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
+        gB = koopman_symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG, N)
+        wB = koopman_symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG, N)
+        x = cs.vertcat(pB, vB, gB, wB)
+
+        m = symbolic("m", PARAMETER_CONFIG)
+        a = symbolic("a", PARAMETER_CONFIG)
+        Ixx = symbolic("Ixx", PARAMETER_CONFIG)
+        Iyy = symbolic("Iyy", PARAMETER_CONFIG)
+        Izz = symbolic("Izz", PARAMETER_CONFIG)
+        k = symbolic("k", PARAMETER_CONFIG)
+        c = symbolic("c", PARAMETER_CONFIG)
+        r = symbolic("r", PARAMETER_CONFIG)
+        s = symbolic("s", PARAMETER_CONFIG)
+        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, k, c, r, s))
+
+        J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
+
+        # Derive Koopman observables
+        ws_N = attitude.get_ws(wB_init, J, N)
+        Hs_N = attitude.get_Hs(ws_N, J)
+
+        ps = position.get_ps(pB_init, ws_N)
+        Ps = position.get_Ps(ps, ws_N, Hs_N, J)
+
+        vs = velocity.get_vs(vB_init, ws_N)
+        Os = velocity.get_Os(vs)
+        Vs = velocity.get_Vs(vs, ws_N, Hs_N, J)
+
+        gs = gravity.get_gs(gB_init, ws_N)
+        Gs = gravity.get_Gs(gs, ws_N, Hs_N, J)
+
+        ws = attitude.get_ws(wB_init, J, N)
+        Hs = attitude.get_Hs(ws, J)
+
+        # Control input terms
+        u = symbolic("MOTOR_SPEED_SQUARED", INPUT_CONFIG)
+        K = cs.SX(cs.vertcat(
+            cs.SX.zeros(2, self.nu),
+            k.T,
+        ))
+        C = cs.SX(cs.vertcat(
+            (k * s).T,
+            -(k * r).T,
+            cs.SX(alternating_ones(self.nu)).T * c.T,
+        ))
+
+        # Process noise
+        w = cs.SX.sym("w", self.nw)
+
+        # Continuous-time dynamics
+        B = cs.SX( get_input_matrix(Ps, Os, Vs, Gs, Hs, J, m) @ cs.vertcat(K, C) )
+        A = cs.SX( get_state_matrix(N, N) )
+        xdot = A @ x + B @ u + w
+
+        # Define dynamics function
+        self._f = cs.Function(
+            "f_KoopmanLiftedQuadrotorModel",
             [x, u, w, theta], [xdot]
         )
 

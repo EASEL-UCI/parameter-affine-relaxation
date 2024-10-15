@@ -124,6 +124,34 @@ STATE_CONFIG = {
 }
 
 
+KOOPMAN_STATE_CONFIG = {
+    "BODY_FRAME_POSITION": {
+        "dimensions": 3,
+        "lower_bound": np.hstack((BIG_NEGATIVE * np.ones(3))),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
+    },
+    "BODY_FRAME_LINEAR_VELOCITY": {
+        "dimensions": 3,
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
+    },
+    "BODY_FRAME_ANGULAR_VELOCITY": {
+        "dimensions": 3,
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
+    },
+    "BODY_FRAME_GRAVITY": {
+        "dimensions": 3,
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
+    },
+}
+
+
 INPUT_CONFIG = {
     "MOTOR_SPEED_SQUARED": {
         "dimensions": 4,
