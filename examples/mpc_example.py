@@ -2,8 +2,8 @@
 
 import time
 import numpy as np
-from par.models import CrazyflieModel, ParameterAffineQuadrotorModel
-from par.quat import random_unit_quat
+from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel
+from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
 
 nl_model = CrazyflieModel()
@@ -18,7 +18,7 @@ nl_nmpc = NMPC(dt=0.01, N=100, Q=Q, R=R, Qf=Qf, model=nl_model)
 aff_nmpc = NMPC(dt=0.01, N=100, Q=Q, R=R, Qf=Qf, model=aff_model)
 
 pos0 = np.random.uniform(low=-2.0, high=2.0, size=3)
-att0 = random_unit_quat()
+att0 = random_unit_quaternion()
 vel0 = np.random.uniform(low=-2.0, high=2.0, size=3)
 angvel0 = np.random.uniform(low=-2.0, high=2.0, size=3)
 x0 = np.hstack((pos0, att0, vel0, angvel0))

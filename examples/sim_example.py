@@ -2,8 +2,8 @@
 
 import time
 import numpy as np
-from par.models import CrazyflieModel
-from par.quat import random_unit_quat
+from par.dynamics.models import CrazyflieModel
+from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
 from par.mhe import MHPE
 
@@ -32,7 +32,7 @@ ubu = 0.15 * np.ones(4)
 
 
 pos0 = np.random.uniform(low=-10.0, high=10.0, size=3)
-att0 = random_unit_quat()
+att0 = random_unit_quaternion()
 vel0 = np.random.uniform(low=-10.0, high=10.0, size=3)
 angvel0 = np.random.uniform(low=-10.0, high=10.0, size=3)
 x = np.hstack((pos0, att0, vel0, angvel0))

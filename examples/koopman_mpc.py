@@ -2,10 +2,10 @@
 
 import time
 import numpy as np
-from par.models import CrazyflieModel, KoopmanLiftedQuadrotorModel
+from par.dynamics.models import CrazyflieModel, KoopmanLiftedQuadrotorModel
 from par.mpc import NMPC
 from par.constants import GRAVITY
-from par.quat import random_unit_quat
+from par.utils.math import random_unit_quaternion
 
 
 order = 6
@@ -32,7 +32,7 @@ ubu = 0.15 * np.ones(4)
 
 
 pos0 = np.random.uniform(low=-1.0, high=1.0, size=3)
-#att0 = random_unit_quat()
+#att0 = random_unit_quaternion()
 att0 = np.hstack((1.0, np.zeros(3)))
 vel0 = np.random.uniform(low=-1.0, high=1.0, size=3)
 angvel0 = np.random.uniform(low=-1.0, high=1.0, size=3)

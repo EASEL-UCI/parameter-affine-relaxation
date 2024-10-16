@@ -1,8 +1,6 @@
-from typing import Tuple, Union
 from math import factorial as fact
 
 import numpy as np
-
 
 
 def jordan_block(lam: float, n: int) -> np.ndarray:
@@ -23,3 +21,12 @@ def skew(a: np.ndarray) -> np.ndarray:
         [ a[2], 0.0, -a[0] ],
         [ -a[1], a[0], 0.0 ]
     ])
+
+
+def e3() -> np.ndarray:
+    return np.array([0.0, 0.0, 1.0])
+
+
+def random_unit_quaternion():
+    unscaled_quat = np.random.uniform(low=-1.0, high=1.0, size=4)
+    return unscaled_quat / np.linalg.norm(unscaled_quat)
