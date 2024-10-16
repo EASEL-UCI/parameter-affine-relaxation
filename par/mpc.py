@@ -6,7 +6,7 @@ from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 import matplotlib
 
-from par.models import DynamicsModel, NonlinearQuadrotorModel, \
+from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
                     ParameterAffineQuadrotorModel, KoopmanLiftedQuadrotorModel
 from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
 from par.utils.config import get_default_vector, get_dimensions
@@ -23,7 +23,6 @@ class NMPC():
         R: np.ndarray,
         Qf: np.ndarray,
         model: DynamicsModel,
-        xref=None,
         is_verbose=False,
     ) -> None:
         self._dt = dt
@@ -38,17 +37,23 @@ class NMPC():
         self._ubg = None
 
         if type(model) == KoopmanLiftedQuadrotorModel:
+            self._is_koopman = True
+            self._xref = get_default_vector(
+                "default_value",
+            )
             self._lbx = get_default_vector(
                 "lower_bound", KOOPMAN_STATE_CONFIG, copies=model.order)
             self._ubx = get_default_vector(
                 "upper_bound", KOOPMAN_STATE_CONFIG, copies=model.order)
         else:
+            self._is_koopman = False
             self._lbx = get_default_vector("lower_bound", STATE_CONFIG)
             self._ubx = get_default_vector("upper_bound", STATE_CONFIG)
+
         self._lbu = get_default_vector("lower_bound", INPUT_CONFIG)
         self._ubu = get_default_vector("upper_bound", INPUT_CONFIG)
         self._uk_guess = N * [get_default_vector("default_value", INPUT_CONFIG)]
-        self._solver = self._init_solver(xref, is_verbose)
+        self._solver = self._init_solver(is_verbose)
 
     def get_state_trajectory(self) -> np.ndarray:
         nx = self._model.nx
@@ -134,6 +139,7 @@ class NMPC():
     def solve(
         self,
         x: np.ndarray,
+        xref: List[np.ndarray],
         theta=None,
         lbx=None,
         ubx=None,
@@ -184,18 +190,20 @@ class NMPC():
 
     def _init_solver(
         self,
-        xref: Union[None, np.ndarray],
         is_verbose: bool
     ) -> dict:
-        # New decision variable for state
+        # Decision variable for state
         x0 = cs.SX.sym("x0", self._model.nx)
-        # New constant for parameters
-        theta = cs.SX.sym("theta", self._model.ntheta)
-        # New constant for koopman initialization
-        if type(self._model) == KoopmanLiftedQuadrotorModel:
-            x_init = cs.SX.sym("x_init", get_dimensions(KOOPMAN_STATE_CONFIG))
 
-        # Variables for formulating nlp
+        # Constant for model parameters
+        theta = cs.SX.sym("theta", self._model.ntheta)
+        # Constant for koopman initialization
+        if self._is_koopman:
+            x_init = cs.SX.sym("x_init", get_dimensions(KOOPMAN_STATE_CONFIG))
+        else:
+            x_init = cs.SX()
+
+        # Variables for formulating NLP
         d = [x0]
         p = [theta, x_init]
         g = []
@@ -203,34 +211,31 @@ class NMPC():
         ubg = []
         J = 0.0
 
-        # Get default reference state
-        if is_none(xref) and type(self._model) == KoopmanLiftedQuadrotorModel:
-            xref = get_default_vector(
-                "default_value", KOOPMAN_STATE_CONFIG, copies=self._model.order)
-        elif is_none(xref):
-            xref = get_default_vector("default_value", STATE_CONFIG)
-
         # Formulate the nlp
         xk = x0
         for k in range(self._N):
-            # New nlp variable for the control
+            # New NLP decision variable for control
             uk = cs.SX.sym("u" + str(k), self._model.nu)
             d += [uk]
 
-            # Add running cost
-            J += self._get_stage_cost(x=xk, u=uk, xref=xref)
+            # New NLP parameters for reference tracking
+            xref_k = cs.SX.sym("xref" + str(k), self._model.nx)
+            uref_k = cs.SX.sym("uref" + str(k), self._model.nu)
+            p += [xref_k, uref_k]
 
-            # Add terminal cost
+            # Add costs
+            J += self._get_stage_cost(x=xk, u=uk, xref=xref_k, uref=uref_k)
             if k == self._N - 1:
-                J += self._get_terminal_cost(x=xk, xref=xref)
+                J += self._get_terminal_cost(x=xk, xref=xref_k)
 
             # Get the state at the end of the time step
-            if type(self._model) == KoopmanLiftedQuadrotorModel:
-                xf = self._model.F(self._dt, x=xk, u=uk, theta=theta, x_init=x_init)
+            if self._is_koopman:
+                xf = self._model.F(
+                    self._dt, x=xk, u=uk, theta=theta, x_init=x_init)
             else:
                 xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
 
-            # New NLP variable for state at end of interval
+            # New NLP variable for state at the end of the interval
             xk = cs.SX.sym("x" + str(k+1), self._model.nx)
             d += [xk]
 
@@ -263,10 +268,13 @@ class NMPC():
         self,
         x: cs.SX,
         u: cs.SX,
-        xref: np.ndarray,
+        xref: cs.SX,
+        uref: cs.SX,
     ) -> cs.SX:
-        err = x - xref
-        return err.T @ self._Q @ err + u.T @ self._R @ u
+        state_err = x - xref
+        input_err = u - uref
+        return state_err.T @ self._Q @ state_err + \
+                input_err.T @ self._R @ input_err
 
     def _get_terminal_cost(
         self,

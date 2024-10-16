@@ -7,7 +7,7 @@ from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 import matplotlib
 
-from par.models import NonlinearQuadrotorModel, ParameterAffineQuadrotorModel
+from par.dynamics.models import NonlinearQuadrotorModel, ParameterAffineQuadrotorModel
 from par.config import STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 from par.utils.config import get_default_vector
 from par.utils.misc import is_none
