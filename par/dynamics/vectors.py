@@ -8,8 +8,8 @@ from par.utils.misc import is_none, convert_casadi_to_numpy_vector
 from par.utils.config import get_dimensions, get_default_vector
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
-from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG,STATE_CONFIG, \
-                        KOOPMAN_STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
+from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, STATE_CONFIG, \
+                        KOOPMAN_CONFIG
 
 
 class DynamicsVector():
@@ -61,12 +61,12 @@ class State(DynamicsVector):
 
     def get_zero_order_koopman_vector(self) -> np.ndarray:
         z0_members = self.get_zero_order_koopman_members()
-        z0 = [list(z0_members[id]) for id in KOOPMAN_STATE_CONFIG.keys()]
+        z0 = [list(z0_members[id]) for id in KOOPMAN_CONFIG.keys()]
         return np.hstack(z0).flatten()
 
     def get_lifted_koopman_vector(self, J: np.ndarray, order: int) -> np.ndarray:
         z_members = self.get_lifted_koopman_members(J, order)
-        z = [list(z_members[id]) for id in KOOPMAN_STATE_CONFIG.keys()]
+        z = [list(z_members[id]) for id in KOOPMAN_CONFIG.keys()]
         return np.hstack(z).flatten()
 
     def get_zero_order_koopman_members(self) -> dict:

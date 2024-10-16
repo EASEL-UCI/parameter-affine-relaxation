@@ -8,7 +8,7 @@ import matplotlib
 
 from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
                     ParameterAffineQuadrotorModel, KoopmanLiftedQuadrotorModel
-from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
+from par.config import STATE_CONFIG, KOOPMAN_CONFIG, INPUT_CONFIG
 from par.utils.config import get_default_vector, get_dimensions
 from par.utils.misc import is_none
 
@@ -42,9 +42,9 @@ class NMPC():
                 "default_value",
             )
             self._lbx = get_default_vector(
-                "lower_bound", KOOPMAN_STATE_CONFIG, copies=model.order)
+                "lower_bound", KOOPMAN_CONFIG, copies=model.order)
             self._ubx = get_default_vector(
-                "upper_bound", KOOPMAN_STATE_CONFIG, copies=model.order)
+                "upper_bound", KOOPMAN_CONFIG, copies=model.order)
         else:
             self._is_koopman = False
             self._lbx = get_default_vector("lower_bound", STATE_CONFIG)
@@ -199,7 +199,7 @@ class NMPC():
         theta = cs.SX.sym("theta", self._model.ntheta)
         # Constant for koopman initialization
         if self._is_koopman:
-            x_init = cs.SX.sym("x_init", get_dimensions(KOOPMAN_STATE_CONFIG))
+            x_init = cs.SX.sym("x_init", get_dimensions(KOOPMAN_CONFIG))
         else:
             x_init = cs.SX()
 
