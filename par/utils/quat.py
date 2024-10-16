@@ -44,8 +44,3 @@ def G(q: cs.SX) -> cs.SX:
 
 def Q(q: cs.SX) -> cs.SX:
     return H.T @ R(q).T @ L(q) @ H
-
-
-def random_unit_quat():
-    unscaled_quat = np.random.uniform(low=-1.0, high=1.0, size=4)
-    return unscaled_quat / np.linalg.norm(unscaled_quat)

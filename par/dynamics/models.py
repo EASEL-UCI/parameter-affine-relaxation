@@ -3,7 +3,8 @@ from typing import Union, Callable, Tuple
 import casadi as cs
 import numpy as np
 
-import par.quat as quat
+from par.utils import quat
+from par.dynamics.vectors import ModelParameters
 from par.koopman.dynamics import get_state_matrix, get_input_matrix
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
@@ -12,43 +13,6 @@ from par.utils.config import symbolic, get_dimensions, get_subvector, \
                                 insert_subvector
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG,STATE_CONFIG, \
                         KOOPMAN_STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
-
-
-class ModelParameters():
-    def __init__(self, **kwargs) -> None:
-        self._vector = np.array(())
-        input_keys = list(kwargs.keys())
-        input_values = list(kwargs.values())
-        config_keys = list(PARAMETER_CONFIG.keys())
-        config_values = list(PARAMETER_CONFIG.values())
-
-        for i in range(len(kwargs.items())):
-            assert input_keys[i] == config_keys[i]
-            try:
-                assert len(input_values[i]) == config_values[i]["dimensions"]
-            except TypeError:
-                assert type(input_values[i]) == float
-            self._vector = np.hstack((self._vector, np.array(input_values[i])))
-            setattr(self, input_keys[i], input_values[i])
-
-    @property
-    def vector(self) -> np.ndarray:
-        return self._vector
-
-    @property
-    def affine_vector(self) -> np.ndarray:
-        return np.hstack((
-            self.a / self.m,
-            self.k / self.m,
-            self.k * self.s / self.Ixx,
-            self.k * self.r / self.Iyy,
-            self.c / self.Izz,
-            np.array((
-                (self.Izz - self.Iyy) / self.Ixx,
-                (self.Ixx - self.Izz) / self.Iyy,
-                (self.Iyy - self.Ixx) / self.Izz,
-            ))
-        ))
 
 
 class DynamicsModel():
