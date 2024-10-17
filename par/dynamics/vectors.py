@@ -15,26 +15,30 @@ from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
 class DynamicsVector():
     def __init__(
         self,
-        vector: np.ndarray,
         config: dict,
+        vector: np.ndarray = None,
+        copies: int = 1,
     ) -> None:
+        self._n = copies
         self._dims = get_dimensions(config)
         self._config = config
         self._members = {}
+        if is_none(vector):
+            vector = get_config_values("default_value", config, copies=copies)
         self.set_vector(vector)
 
     def as_array(self) -> np.ndarray:
         vector = [member for member in self._members.values()]
         return np.hstack(vector)
 
-    def as_list(self) -> np.ndarray:
+    def as_list(self) -> List:
         return list(self.as_array())
 
     def set_vector(self, vector: np.ndarray) -> None:
-        assert len(vector) == self._dims
+        assert len(vector) == self._n * self._dims
         i = 0
         for id, subconfig in self._config.items():
-            dims = subconfig["dimensions"]
+            dims = self._n * subconfig["dimensions"]
             self._members[id] = vector[i : i + dims]
             i += dims
 
@@ -47,16 +51,16 @@ class DynamicsVector():
         member: Union[float, np.ndarray],
     ) -> None:
         if type(member) == float or type(member) == np.float64:
-            assert self._config[id]["dimensions"] == 1
+            assert self._config[id]["dimensions"] == self._n
         else:
-            assert len(member) == self._config[id]["dimensions"]
+            assert len(member) == self._n * self._config[id]["dimensions"]
         self._members[id] = member
 
 
 class DynamicsVectorList(list):
     def __init__(
         self,
-        vector_list=[]
+        vector_list: List = [],
     ) -> None:
         self._list = []
         self.append(vector_list)
@@ -66,7 +70,7 @@ class DynamicsVectorList(list):
 
     def get(
         self,
-        index=None
+        index: int = None
     ) -> DynamicsVector:
         if is_none(index):
             return self._list
@@ -78,7 +82,8 @@ class DynamicsVectorList(list):
         vectors: Union[DynamicsVector, List[DynamicsVector]]
     ) -> None:
         if type(vectors) == DynamicsVector or type(vectors) == ModelParameters \
-        or type(vectors) == State or type(vectors) == Input:
+        or type(vectors) == State or type(vectors) == Input \
+        or type(vectors) == KoopmanLiftedState:
             self._assert_type(vectors)
             self._list += [vectors]
         else:
@@ -90,37 +95,48 @@ class DynamicsVectorList(list):
         entry: DynamicsVector
     ) -> None:
         assert type(entry) == DynamicsVector or type(entry) == ModelParameters \
-            or type(entry) == State or type(entry) == Input
+            or type(entry) == State or type(entry) == Input \
+            or type(entry) == KoopmanLiftedState
 
 
 class Input(DynamicsVector):
     def __init__(
         self,
-        u=None
+        u: np.ndarray = None,
     ) -> None:
-        if is_none(u):
-            u = get_config_values("default_value", INPUT_CONFIG)
-        super().__init__(u, INPUT_CONFIG)
+        super().__init__(INPUT_CONFIG, u)
+
+
+class KoopmanLiftedState(DynamicsVector):
+    def __init__(
+        self,
+        z: np.ndarray = None,
+        order: int = 1,
+    ) -> None:
+        super().__init__(KOOPMAN_CONFIG, z, order)
+
+    def get_zero_order_array(self) -> np.ndarray:
+        vector = [member[: self._config[id]["dimensions"]] \
+                    for id, member in self._members.items()]
+        return np.hstack(vector)
 
 
 class State(DynamicsVector):
     def __init__(
         self,
-        x=None,
+        x: np.ndarray = None,
     ) -> None:
-        if is_none(x):
-            x = get_config_values("default_value", STATE_CONFIG)
-        super().__init__(x, STATE_CONFIG)
+        super().__init__(STATE_CONFIG, x)
 
-    def get_zero_order_koopman_vector(self) -> np.ndarray:
+    def as_zero_order_koopman(self) -> KoopmanLiftedState:
         z0_members = self.get_zero_order_koopman_members()
         z0 = [list(z0_members[id]) for id in KOOPMAN_CONFIG.keys()]
-        return np.hstack(z0).flatten()
+        return KoopmanLiftedState(np.hstack(z0).flatten(), 1)
 
-    def get_lifted_koopman_vector(self, J: np.ndarray, order: int) -> np.ndarray:
+    def as_lifted_koopman(self, J: np.ndarray, order: int) -> KoopmanLiftedState:
         z_members = self.get_lifted_koopman_members(J, order)
         z = [list(z_members[id]) for id in KOOPMAN_CONFIG.keys()]
-        return np.hstack(z).flatten()
+        return KoopmanLiftedState(np.hstack(z).flatten(), order)
 
     def get_zero_order_koopman_members(self) -> dict:
         rot = quat.Q(self._members["ATTITUDE"])
@@ -156,11 +172,9 @@ class State(DynamicsVector):
 class ModelParameters(DynamicsVector):
     def __init__(
         self,
-        theta=None,
+        theta: np.ndarray = None,
     ) -> None:
-        if is_none(theta):
-            theta = get_config_values("default_value", PARAMETER_CONFIG)
-        super().__init__(theta, PARAMETER_CONFIG)
+        super().__init__(PARAMETER_CONFIG, theta)
 
     def get_affine_vector(self) -> np.ndarray:
         aff_members = self.get_affine_members()

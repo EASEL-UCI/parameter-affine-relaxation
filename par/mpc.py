@@ -8,7 +8,7 @@ import matplotlib
 
 from par.dynamics.models import DynamicsModel, KoopmanLiftedQuadrotorModel
 from par.dynamics.vectors import State, Input, ModelParameters, \
-                                    DynamicsVectorList
+                                    KoopmanLiftedState, DynamicsVectorList
 from par.config import STATE_CONFIG, KOOPMAN_CONFIG, INPUT_CONFIG
 from par.utils.config import get_config_values, get_dimensions
 from par.utils.misc import is_none
@@ -38,10 +38,16 @@ class NMPC():
 
         if type(model) == KoopmanLiftedQuadrotorModel:
             self._is_koopman = True
-            self._lbx = State(get_config_values(
-                "lower_bound", KOOPMAN_CONFIG, copies=model.order))
-            self._ubx = State(get_config_values(
-                "upper_bound", KOOPMAN_CONFIG, copies=model.order))
+            self._lbx = KoopmanLiftedState(
+                get_config_values(
+                    "lower_bound", KOOPMAN_CONFIG, copies=model.order),
+                self._model.order
+            )
+            self._ubx = KoopmanLiftedState(
+                get_config_values(
+                    "upper_bound", KOOPMAN_CONFIG, copies=model.order),
+                self._model.order
+            )
         else:
             self._is_koopman = False
             self._lbx = State(get_config_values("lower_bound", STATE_CONFIG))
@@ -58,8 +64,14 @@ class NMPC():
         nu = self._model.nu
         xs = DynamicsVectorList()
         for k in range(1, self._N + 1):
-            xs.append(State(np.array(
-                self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
+            if self._is_koopman:
+                xs.append(KoopmanLiftedState(np.array(
+                    self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten(),
+                    self._model.order
+                ))
+            else:
+                xs.append(State(np.array(
+                    self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
         return xs
 
     def get_predicted_inputs(self) -> DynamicsVectorList:
@@ -73,11 +85,11 @@ class NMPC():
 
     def plot_trajectory(
         self,
-        xs=None,
-        us=None,
-        dt=None,
-        N=None,
-        order=None,
+        xs: DynamicsVectorList = None,
+        us: DynamicsVectorList = None,
+        dt: float = None,
+        N: float = None,
+        order: int = None,
     ) -> None:
         """
         Display the series of control inputs
@@ -100,32 +112,33 @@ class NMPC():
             "squared motor\nang vel (rad/s)^2",
         )
 
-        if is_none(xs):
-            xs = self.get_predicted_states().as_array()
-        else:
-            xs = xs.as_array()
-        if len(xs) > len(us):
-            xs = xs[:len(us), :]
-        legend = ["x", "y", "z"]
-        self._plot_trajectory(
-            axs[1], t, xs[:,:3], interp_N, legend,
-            "pos (m)"
-        )
-        legend = ["qw", "qx", "qy", "qz"]
-        self._plot_trajectory(
-            axs[2], t, xs[:, 3:7], interp_N, legend,
-            "att (quat)"
-        )
-        legend = ["vx", "vy", "vz"]
-        self._plot_trajectory(
-            axs[3], t, xs[:, 7:10], interp_N, legend,
-            "body frame\nvel (m/s)"
-        )
-        legend = ["wx", "wy", "wz"]
-        self._plot_trajectory(
-            axs[4], t, xs[:, 10:13], interp_N, legend,
-            "body frame\nang vel (rad/s)",
-        )
+        if self._is_koopman:
+            if is_none(xs):
+                xs = self.get_predicted_states().as_array()
+            else:
+                xs = xs.as_array()
+            if len(xs) > len(us):
+                xs = xs[:len(us), :]
+            legend = ["x", "y", "z"]
+            self._plot_trajectory(
+                axs[1], t, xs[:,:3], interp_N, legend,
+                "pos (m)"
+            )
+            legend = ["qw", "qx", "qy", "qz"]
+            self._plot_trajectory(
+                axs[2], t, xs[:, 3:7], interp_N, legend,
+                "att (quat)"
+            )
+            legend = ["vx", "vy", "vz"]
+            self._plot_trajectory(
+                axs[3], t, xs[:, 7:10], interp_N, legend,
+                "body frame\nvel (m/s)"
+            )
+            legend = ["wx", "wy", "wz"]
+            self._plot_trajectory(
+                axs[4], t, xs[:, 10:13], interp_N, legend,
+                "body frame\nang vel (rad/s)",
+            )
 
         for ax in axs.flat:
             ax.set(xlabel="time (s)")
@@ -134,18 +147,20 @@ class NMPC():
 
     def solve(
         self,
-        x: State,
+        x: Union[State, KoopmanLiftedState],
         xref: DynamicsVectorList,
         uref: DynamicsVectorList,
-        theta=None,
-        lbx=None,
-        ubx=None,
-        lbu=None,
-        ubu=None,
-        xs_guess=None,
-        us_guess=None,
+        theta: ModelParameters = None,
+        lbx: State = None,
+        ubx: State = None,
+        lbu: Input = None,
+        ubu: Input = None,
+        xs_guess: DynamicsVectorList = None,
+        us_guess: DynamicsVectorList = None,
     ) -> dict:
+        # Enforce correct horizon length
         assert len(xref.get()) == len(uref.get()) == self._N
+
         # Get default inequality constraints
         if is_none(lbx): lbx = self._lbx
         if is_none(ubx): ubx = self._ubx
@@ -153,17 +168,15 @@ class NMPC():
         if is_none(ubu): ubu = self._ubu
         if is_none(theta): theta = self._theta
         if is_none(us_guess): us_guess = self._us_guess
+        if is_none(xs_guess): xs_guess = DynamicsVectorList(self._N * [x])
 
         # Initialize the parameter argument
-        p = theta.as_list() #+ x.as_list()
+        p = theta.as_list()
         if self._is_koopman:
-            p += list(x.get_zero_order_koopman_vector())
-            if is_none(xs_guess):
-                z = x.get_lifted_koopman_vector()
-                xs_guess = DynamicsVectorList(self._N * [z])
+            assert type(x) == KoopmanLiftedState
+            p += KoopmanLiftedState(x.get_zero_order_array(), 1).as_list()
         else:
-            if is_none(xs_guess):
-                xs_guess = DynamicsVectorList(self._N * [x])
+            assert type(x) == State
 
         # Construct optimization arguments
         lbd = x.as_list()
@@ -175,6 +188,7 @@ class NMPC():
             guess += us_guess.get(k).as_list() + xs_guess.get(k).as_list()
             p += uref.get(k).as_list() + xref.get(k).as_list()
 
+        # Solve
         self._sol = self._solver(
             x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
         return self._sol
@@ -244,13 +258,14 @@ class NMPC():
 
         # Create NLP solver
         nlp_prob = {"f": J, "x": d, "p": p, "g": g}
-        if is_verbose:
-            opts = {}#{"ipopt.hessian_approximation": "exact"}
-        else:
-            opts = {#{"ipopt.hessian_approximation": "exact",
-                "ipopt.print_level": 0, "print_time": 0, "ipopt.sb": "yes"}
+        opts = {"ipopt.max_iter": 3000} #{"ipopt.hessian_approximation": "exact"}
+        if not is_verbose:
+            opts["ipopt.print_level"] = 0
+            opts["print_time"] = 0
+            opts["ipopt.sb"] = "yes"
+            #opts["ipopt.hessian_approximation"] = "exact"
         #opts = {"error_on_fail": False}
-        #return cs.qpsol("nlp_solver", "qpoases", nlp_prob)
+        #return cs.qpsol("nlp_solver", "osqp", nlp_prob, opts)
         return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
 
     def _get_stage_cost(
