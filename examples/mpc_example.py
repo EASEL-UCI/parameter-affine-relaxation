@@ -1,39 +1,34 @@
 #!/usr/bin/python3
 
-import time
 import numpy as np
-from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel
+from numpy.random import uniform
+from par.dynamics.vectors import State, Input, DynamicsVectorList
+from par.dynamics.models import CrazyflieModel
 from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
 
-nl_model = CrazyflieModel()
-aff_model = ParameterAffineQuadrotorModel(nl_model.parameters)
 
-Q = np.diag(np.hstack((
-    10.0 * np.ones(3), 5.0 * np.ones(4), 1.0 * np.ones(6)
-)))
+dt = 0.1
+N = 50
+Q = np.diag(np.hstack(( 2.0 * np.ones(3), 2.0 * np.ones(4), 1.0 * np.ones(6) )))
 R = 0.01 * np.eye(4)
 Qf = 2.0 * Q
-nl_nmpc = NMPC(dt=0.01, N=100, Q=Q, R=R, Qf=Qf, model=nl_model)
-aff_nmpc = NMPC(dt=0.01, N=100, Q=Q, R=R, Qf=Qf, model=aff_model)
+nl_model = CrazyflieModel()
+nl_nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=nl_model, is_verbose=True)
 
-pos0 = np.random.uniform(low=-2.0, high=2.0, size=3)
-att0 = random_unit_quaternion()
-vel0 = np.random.uniform(low=-2.0, high=2.0, size=3)
-angvel0 = np.random.uniform(low=-2.0, high=2.0, size=3)
-x0 = np.hstack((pos0, att0, vel0, angvel0))
 
-lbu = np.zeros(4)
-ubu = 0.15 * np.ones(4)
+x = State()
+x.set_member("POSITION", uniform(-10.0, 10.0, size=3))
+x.set_member("ATTITUDE", random_unit_quaternion())
+x.set_member("BODY_FRAME_LINEAR_VELOCITY", uniform(-10.0, 10.0, size=3))
+x.set_member("BODY_FRAME_ANGULAR_VELOCITY", uniform(-10.0, 10.0, size=3))
 
-st = time.time()
-nl_nmpc.solve(x=x0, lbu=lbu, ubu=ubu)
-et = time.time()
-print(f"computation time: {et-st}")
+lbu = Input(np.zeros(4))
+ubu = Input(0.15 * np.ones(4))
+
+xref = DynamicsVectorList( N * [State()] )
+uref = DynamicsVectorList( N * [Input()] )
+
+
+nl_nmpc.solve(x=x, xref=xref, uref=uref, lbu=lbu, ubu=ubu)
 nl_nmpc.plot_trajectory()
-
-st = time.time()
-aff_nmpc.solve(x=x0, lbu=lbu, ubu=ubu)
-et = time.time()
-print(f"computation time: {et-st}")
-aff_nmpc.plot_trajectory()
