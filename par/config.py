@@ -136,7 +136,7 @@ STATE_CONFIG = {
 KOOPMAN_CONFIG = {
     "BODY_FRAME_POSITION": {
         "dimensions": 3,
-        "lower_bound": np.hstack((BIG_NEGATIVE * np.ones(3))),
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
         "upper_bound": BIG_POSITIVE * np.ones(3),
         "default_value": np.zeros(3),
     },
