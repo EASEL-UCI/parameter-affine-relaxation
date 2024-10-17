@@ -68,8 +68,8 @@ class DynamicsModel():
         dt: float,
         x: Union[np.ndarray, cs.SX],
         u: Union[np.ndarray, cs.SX],
-        w=None,
-        theta=None,
+        w: Union[np.ndarray, cs.SX] = None,
+        theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
         if is_none(theta):
             theta = self.get_default_parameter_vector()
@@ -85,8 +85,8 @@ class DynamicsModel():
         self,
         x: Union[np.ndarray, cs.SX],
         u: Union[np.ndarray, cs.SX],
-        w=None,
-        theta=None,
+        w: Union[np.ndarray, cs.SX] = None,
+        theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
         if is_none(self._f):
             raise Exception("Model has no continuous-time dynamics!")
@@ -122,7 +122,7 @@ class DynamicsModel():
 class NonlinearQuadrotorModel(DynamicsModel):
     def __init__(
         self,
-        parameters=None,
+        parameters: ModelParameters = None,
     ) -> None:
         super().__init__(parameters)
         self._parameter_config = PARAMETER_CONFIG
@@ -189,7 +189,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
 class ParameterAffineQuadrotorModel(DynamicsModel):
     def __init__(
         self,
-        parameters=None,
+        parameters: ModelParameters = None,
     ) -> None:
         super().__init__(parameters)
         self._parameter_config = RELAXED_PARAMETER_CONFIG
@@ -260,7 +260,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
     def __init__(
         self,
         observables_order: int,
-        parameters=None,
+        parameters: ModelParameters = None,
     ) -> None:
         super().__init__(parameters)
         self._parameter_config = PARAMETER_CONFIG
@@ -280,8 +280,8 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         z0: Union[np.ndarray, cs.SX],
         x: Union[np.ndarray, cs.SX],
         u: Union[np.ndarray, cs.SX],
-        w=None,
-        theta=None,
+        w: Union[np.ndarray, cs.SX] = None,
+        theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
         if is_none(theta):
             theta = self.get_default_parameter_vector()
@@ -298,8 +298,8 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         z0: Union[np.ndarray, cs.SX],
         x: Union[np.ndarray, cs.SX],
         u: Union[np.ndarray, cs.SX],
-        w=None,
-        theta=None,
+        w: Union[np.ndarray, cs.SX] = None,
+        theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
         if is_none(self._f):
             raise Exception("Model has no continuous-time dynamics!")

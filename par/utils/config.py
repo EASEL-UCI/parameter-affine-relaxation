@@ -62,8 +62,8 @@ def symbolic(id: str, config: dict, copies=1) -> cs.SX:
 def get_config_values(
     id: str,
     config: dict,
-    dimensions=None,
-    copies=1
+    dimensions: int = None,
+    copies: int = 1
 ) -> np.ndarray:
     if is_none(dimensions):
         dimensions = get_dimensions(config)
