@@ -136,8 +136,8 @@ class NonlinearQuadrotorModel(DynamicsModel):
     def _set_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
         q = symbolic("ATTITUDE", STATE_CONFIG)
-        vB = symbolic("BODY_LINEAR_VELOCITY", STATE_CONFIG)
-        wB = symbolic("BODY_ANGULAR_VELOCITY", STATE_CONFIG)
+        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", STATE_CONFIG)
+        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", STATE_CONFIG)
         x = cs.SX(cs.vertcat(p, q, vB, wB))
 
         m = symbolic("m", PARAMETER_CONFIG)
@@ -157,7 +157,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
         # Control input terms
-        u = symbolic("MOTOR_SPEED_SQUARED", INPUT_CONFIG)
+        u = symbolic("SQUARED_MOTOR_ANGULAR_VELOCITY", INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             k.T,
@@ -203,8 +203,8 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
     def _set_affine_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
         q = symbolic("ATTITUDE", STATE_CONFIG)
-        vB = symbolic("BODY_LINEAR_VELOCITY", STATE_CONFIG)
-        wB = symbolic("BODY_ANGULAR_VELOCITY", STATE_CONFIG,)
+        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", STATE_CONFIG)
+        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", STATE_CONFIG)
         x = cs.SX(cs.vertcat(p, q, vB, wB))
 
         g = cs.vertcat(0, 0, -GRAVITY)
@@ -217,7 +217,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
             cs.SX.zeros(3),
         ))
 
-        u = symbolic("MOTOR_SPEED_SQUARED", INPUT_CONFIG)
+        u = symbolic("SQUARED_MOTOR_ANGULAR_VELOCITY", INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             u.T,
@@ -369,7 +369,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         Hs = attitude.get_Hs(ws, J)
 
         # Control input terms
-        u = symbolic("MOTOR_SPEED_SQUARED", INPUT_CONFIG)
+        u = symbolic("SQUARED_MOTOR_ANGULAR_VELOCITY", INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             k.T,

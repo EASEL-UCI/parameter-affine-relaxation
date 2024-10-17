@@ -18,10 +18,10 @@ nl_nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=nl_model, is_verbose=False)
 
 
 x = State()
-x.set_member("POSITION", uniform(low=-10.0, high=10.0, size=3))
+x.set_member("POSITION", uniform(-10.0, 10.0, size=3))
 x.set_member("ATTITUDE", random_unit_quaternion())
-x.set_member("BODY_LINEAR_VELOCITY", uniform(low=-10.0, high=10.0, size=3))
-x.set_member("BODY_ANGULAR_VELOCITY", uniform(low=-10.0, high=10.0, size=3))
+x.set_member("BODY_FRAME_LINEAR_VELOCITY", uniform(-10.0, 10.0, size=3))
+x.set_member("BODY_FRAME_ANGULAR_VELOCITY", uniform(-10.0, 10.0, size=3))
 
 lbu = Input(np.zeros(4))
 ubu = Input(0.15 * np.ones(4))

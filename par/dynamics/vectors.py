@@ -127,10 +127,10 @@ class State(DynamicsVector):
         z0_members = {}
         z0_members["BODY_FRAME_POSITION"] = rot.T @ self._members["POSITION"]
         z0_members["BODY_FRAME_LINEAR_VELOCITY"] = \
-                                        self._members["BODY_LINEAR_VELOCITY"]
+            self._members["BODY_FRAME_LINEAR_VELOCITY"]
         z0_members["BODY_FRAME_GRAVITY"] = rot.T @ (-GRAVITY * math.e3())
         z0_members["BODY_FRAME_ANGULAR_VELOCITY"] = \
-                                        self._members["BODY_ANGULAR_VELOCITY"]
+            self._members["BODY_FRAME_ANGULAR_VELOCITY"]
         return z0_members
 
     def get_lifted_koopman_members(self, J: np.ndarray, order: int) -> dict:
