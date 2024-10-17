@@ -1,67 +1,61 @@
 #!/usr/bin/python3
 
-import time
 import numpy as np
+from numpy.random import uniform
+from par.dynamics.vectors import State, Input, DynamicsVectorList
 from par.dynamics.models import CrazyflieModel
 from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
-from par.mhe import MHPE
 
 
 dt = 0.1
-N = 10
-Q = np.diag(np.hstack((
-    10.0 * np.ones(3), 5.0 * np.ones(4), 1.0 * np.ones(6)
-)))
+N = 20
+Q = np.diag(np.hstack(( 10.0 * np.ones(3), 5.0 * np.ones(4), 1.0 * np.ones(6) )))
 R = 0.01 * np.eye(4)
 Qf = 2.0 * Q
 nl_model = CrazyflieModel()
-nl_nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=nl_model)
+nl_nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=nl_model, is_verbose=False)
 
 
-'''
-M = 5
-P = np.eye(23)
-S = np.eye(13)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=nl_model)
-'''
+x = State()
+x.set_member("POSITION", uniform(low=-10.0, high=10.0, size=3))
+x.set_member("ATTITUDE", random_unit_quaternion())
+x.set_member("BODY_LINEAR_VELOCITY", uniform(low=-10.0, high=10.0, size=3))
+x.set_member("BODY_ANGULAR_VELOCITY", uniform(low=-10.0, high=10.0, size=3))
 
+lbu = Input(np.zeros(4))
+ubu = Input(0.15 * np.ones(4))
 
-lbu = np.zeros(4)
-ubu = 0.15 * np.ones(4)
+xref = DynamicsVectorList( N * [State()] )
+uref = DynamicsVectorList( N * [Input()] )
 
+xs_guess = None
+us_guess = None
 
-pos0 = np.random.uniform(low=-10.0, high=10.0, size=3)
-att0 = random_unit_quaternion()
-vel0 = np.random.uniform(low=-10.0, high=10.0, size=3)
-angvel0 = np.random.uniform(low=-10.0, high=10.0, size=3)
-x = np.hstack((pos0, att0, vel0, angvel0))
-xk_guess = None
-uk_guess = None
-xk = [x]
-uk = []
+xs = DynamicsVectorList()
+us = DynamicsVectorList()
 
 
 sim_length = 100
 for k in range(sim_length):
     # Solve, update warmstarts, and get the control input
-    nl_nmpc.solve(x=x, lbu=lbu, ubu=ubu, xk_guess=xk_guess, uk_guess=uk_guess)
-    xk_guess = nl_nmpc.get_state_trajectory()
-    uk_guess = nl_nmpc.get_input_trajectory()
-    u = uk_guess[0, :]
+    nl_nmpc.solve(
+        x=x, xref=xref, uref=uref, lbu=lbu, ubu=ubu,
+        xs_guess=xs_guess, us_guess=us_guess)
+    xs_guess = nl_nmpc.get_predicted_states()
+    us_guess = nl_nmpc.get_predicted_inputs()
+    u = us_guess.get(0)
 
     # Generate Guassian noise on the second order terms
     second_order_noise = np.random.normal(loc=1.0, scale=1.0, size=6)
     w = np.hstack((np.zeros(7), second_order_noise))
 
     # Update current state and trajectory history
-    x = nl_model.F(dt=dt, x=x, u=u, w=w)
-    xk += [x]
-    uk += [u]
-    print(f"\ninput {k}: \n{u}")
-    print(f"\n\n\nstate {k+1}: \n{x}")
+    x = State(nl_model.F(dt=dt, x=x.as_array(), u=u.as_array(), w=w))
+    xs.append(x)
+    us.append(u)
 
+    print(f"\ninput {k}: \n{u.as_array()}")
+    print(f"\n\n\nstate {k+1}: \n{x.as_array()}")
 
-xk = np.array(xk)
-uk = np.array(uk)
-nl_nmpc.plot_trajectory(xk=xk, uk=uk, dt=dt, N=sim_length)
+nl_nmpc.plot_trajectory(xs=xs, us=us, dt=dt, N=sim_length)

@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import time
 import numpy as np
 from par.dynamics.models import CrazyflieModel, KoopmanLiftedQuadrotorModel
 from par.mpc import NMPC
@@ -50,8 +49,8 @@ sim_length = 100
 for k in range(sim_length):
     # Solve, update warmstarts, and get the control input
     km_mpc.solve(x=x, lbu=lbu, ubu=ubu, xk_guess=xk_guess, uk_guess=uk_guess)
-    xk_guess = km_mpc.get_state_trajectory()
-    uk_guess = km_mpc.get_input_trajectory()
+    xk_guess = km_mpc.get_predicted_states()
+    uk_guess = km_mpc.get_predicted_inputs()
     u = uk_guess[0, :]
 
     # Generate Guassian noise on the second order terms

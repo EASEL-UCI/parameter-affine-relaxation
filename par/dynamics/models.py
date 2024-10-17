@@ -8,17 +8,16 @@ from par.dynamics.vectors import ModelParameters
 from par.koopman.dynamics import get_state_matrix, get_input_matrix
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
-from par.utils.misc import is_none, alternating_ones, convert_casadi_to_numpy_vector
-from par.utils.config import symbolic, get_dimensions, get_subvector, \
-                                insert_subvector
-from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG,STATE_CONFIG, \
+from par.utils.misc import is_none, alternating_ones
+from par.utils.config import symbolic, get_dimensions
+from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG,STATE_CONFIG,\
                         KOOPMAN_CONFIG, INPUT_CONFIG, NOISE_CONFIG
 
 
 class DynamicsModel():
     def __init__(
         self,
-        parameters,
+        parameters: ModelParameters,
     ) -> None:
         self._parameters = parameters
         self._f = None
@@ -119,16 +118,6 @@ class DynamicsModel():
     def get_default_parameter_vector(self) -> None:
         raise NotImplementedError("Parameter vector getter not implemented!")
 
-    def get_substates(
-        self,
-        x: np.ndarray,
-    ) -> Tuple[np.ndarray]:
-        p = get_subvector(x, "POSITION", STATE_CONFIG)
-        q = get_subvector(x, "ATTITUDE", STATE_CONFIG)
-        v = get_subvector(x, "BODY_LINEAR_VELOCITY", STATE_CONFIG)
-        w = get_subvector(x, "BODY_ANGULAR_VELOCITY", STATE_CONFIG)
-        return p, q, v, w
-
 
 class NonlinearQuadrotorModel(DynamicsModel):
     def __init__(
@@ -142,7 +131,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
 
     def get_default_parameter_vector(self) -> np.ndarray:
         super().check_parameters()
-        return self._parameters.vector
+        return self._parameters.as_array()
 
     def _set_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
@@ -209,7 +198,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
 
     def get_default_parameter_vector(self) -> np.ndarray:
         super().check_parameters()
-        return self._parameters.affine_vector
+        return self._parameters.get_affine_vector()
 
     def _set_affine_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
@@ -283,14 +272,14 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
 
     def get_default_parameter_vector(self) -> np.ndarray:
         super().check_parameters()
-        return self._parameters.vector
+        return self._parameters.as_array()
 
     def F(
         self,
         dt: float,
+        z0: Union[np.ndarray, cs.SX],
         x: Union[np.ndarray, cs.SX],
         u: Union[np.ndarray, cs.SX],
-        x_init: Union[np.ndarray, cs.SX],
         w=None,
         theta=None,
     ) -> Union[np.ndarray, cs.SX]:
@@ -298,7 +287,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
             theta = self.get_default_parameter_vector()
         if is_none(w):
             w = np.zeros(self.nw)
-        xf = self.rk4(self.f, dt, x, u, w, theta, x_init)
+        xf = self.rk4(self.f, dt, z0, x, u, w, theta)
         if type(xf) == cs.DM:
             return np.array(xf).flatten()
         else:
@@ -306,9 +295,9 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
 
     def f(
         self,
+        z0: Union[np.ndarray, cs.SX],
         x: Union[np.ndarray, cs.SX],
         u: Union[np.ndarray, cs.SX],
-        x_init: Union[np.ndarray, cs.SX],
         w=None,
         theta=None,
     ) -> Union[np.ndarray, cs.SX]:
@@ -318,94 +307,36 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
             theta = self.get_default_parameter_vector()
         if is_none(w):
             w = np.zeros(self.nw)
-        return self._f(x, u, w, theta, x_init)
+        return self._f(z0, x, u, w, theta)
 
     def rk4(
         self,
         f: Callable,
         dt: float,
+        z0: Union[np.ndarray, cs.SX],
         x: Union[np.ndarray, cs.SX],
         u: Union[np.ndarray, cs.SX],
         w: Union[np.ndarray, cs.SX],
         theta: Union[np.ndarray, cs.SX],
-        x_init: Union[np.ndarray, cs.SX],
     ) -> Union[np.ndarray, cs.SX]:
-        k1 = f(x, u, x_init, w, theta)
-        k2 = f(x + dt/2 * k1, u, x_init, w, theta)
-        k3 = f(x + dt/2 * k2, u, x_init, w, theta)
-        k4 = f(x + dt * k3, u, x_init, w, theta)
+        k1 = f(z0, x, u, w, theta)
+        k2 = f(z0, x + dt/2 * k1, u, w, theta)
+        k3 = f(z0, x + dt/2 * k2, u, w, theta)
+        k4 = f(z0, x + dt * k3, u, w, theta)
         return x + dt/6 * (k1 +2*k2 +2*k3 +k4)
 
-    def convert_nominal_to_koopman_lifted_state(
-        self,
-        x: np.ndarray,
-    ) -> np.ndarray:
-        p, q, v, w = self.get_substates(x)
-
-        rot = quat.Q(q)
-        p_body = rot.T @ p
-        g_body = rot.T @ np.array([0, 0, -GRAVITY])
-        theta = self.get_default_parameter_vector()
-        J = np.diag(np.hstack((
-            get_subvector(theta, "Ixx", PARAMETER_CONFIG),
-            get_subvector(theta, "Iyy", PARAMETER_CONFIG),
-            get_subvector(theta, "Izz", PARAMETER_CONFIG),
-        )))
-
-        ws = attitude.get_ws(w, J, self.order)
-        ps = position.get_ps(p_body, ws)
-        vs = velocity.get_vs(v, ws)
-        gs = gravity.get_gs(g_body, ws)
-
-        ws_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*ws))
-        ps_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*ps))
-        vs_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*vs))
-        gs_stacked = convert_casadi_to_numpy_vector(cs.vertcat(*gs))
-
-        x_lifted = np.zeros(get_dimensions(KOOPMAN_CONFIG, copies=self.order))
-        x_lifted = insert_subvector(x_lifted, ps_stacked,
-            "BODY_FRAME_POSITION", KOOPMAN_CONFIG, copies=self.order)
-        x_lifted = insert_subvector(x_lifted, vs_stacked,
-            "BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_CONFIG, copies=self.order)
-        x_lifted = insert_subvector(x_lifted, gs_stacked,
-            "BODY_FRAME_GRAVITY", KOOPMAN_CONFIG, copies=self.order)
-        x_lifted = insert_subvector(x_lifted, ws_stacked,
-            "BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_CONFIG, copies=self.order)
-        return x_lifted
-
-    def convert_nominal_to_koopman_initialization_state(
-        self,
-        x: np.ndarray,
-    ) -> np.ndarray:
-        p, q, v, w = self.get_substates(x)
-
-        rot = quat.Q(q)
-        p_body = rot.T @ p
-        g_body= rot.T @ np.array([0, 0, -GRAVITY])
-
-        x_init = np.zeros(get_dimensions(KOOPMAN_CONFIG))
-        x_init = insert_subvector(
-            x_init, p_body, "BODY_FRAME_POSITION", KOOPMAN_CONFIG)
-        x_init = insert_subvector(
-            x_init, v, "BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_CONFIG)
-        x_init = insert_subvector(
-            x_init, g_body, "BODY_FRAME_GRAVITY", KOOPMAN_CONFIG)
-        x_init = insert_subvector(
-            x_init, w, "BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_CONFIG)
-        return x_init
-
     def _set_lifted_model(self) -> None:
-        pB_init = symbolic("BODY_FRAME_POSITION", KOOPMAN_CONFIG)
-        vB_init = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_CONFIG)
-        gB_init = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_CONFIG)
-        wB_init = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_CONFIG)
-        x_init = cs.vertcat(pB_init, vB_init, gB_init, wB_init)
+        pB_0 = symbolic("BODY_FRAME_POSITION", KOOPMAN_CONFIG)
+        vB_0 = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_CONFIG)
+        gB_0 = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_CONFIG)
+        wB_0 = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_CONFIG)
+        z0 = cs.vertcat(pB_0, vB_0, gB_0, wB_0)
 
         pB = symbolic("BODY_FRAME_POSITION", KOOPMAN_CONFIG, self._order)
         vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_CONFIG, self._order)
         gB = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_CONFIG, self._order)
         wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_CONFIG, self._order)
-        x = cs.vertcat(pB, vB, gB, wB)
+        z = cs.vertcat(pB, vB, gB, wB)
 
         m = symbolic("m", PARAMETER_CONFIG)
         a = symbolic("a", PARAMETER_CONFIG)
@@ -421,20 +352,20 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
         # Derive Koopman observables
-        ws_N = attitude.get_ws(wB_init, J, self._order)
+        ws_N = attitude.get_ws(wB_0, J, self._order)
         Hs_N = attitude.get_Hs(ws_N, J)
 
-        ps = position.get_ps(pB_init, ws_N)
+        ps = position.get_ps(pB_0, ws_N)
         Ps = position.get_Ps(ps, ws_N, Hs_N, J)
 
-        vs = velocity.get_vs(vB_init, ws_N)
+        vs = velocity.get_vs(vB_0, ws_N)
         Os = velocity.get_Os(vs)
         Vs = velocity.get_Vs(vs, ws_N, Hs_N, J)
 
-        gs = gravity.get_gs(gB_init, ws_N)
+        gs = gravity.get_gs(gB_0, ws_N)
         Gs = gravity.get_Gs(gs, ws_N, Hs_N, J)
 
-        ws = attitude.get_ws(wB_init, J, self._order)
+        ws = attitude.get_ws(wB_0, J, self._order)
         Hs = attitude.get_Hs(ws, J)
 
         # Control input terms
@@ -455,12 +386,12 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         # Continuous-time dynamics
         B = cs.SX( get_input_matrix(Ps, Os, Vs, Gs, Hs, J, m) @ cs.vertcat(K, C) )
         A = cs.SX( get_state_matrix(self._order, self._order) )
-        xdot = A @ x + B @ u + w
+        zdot = A @ z + B @ u + w
 
         # Define dynamics function
         self._f = cs.Function(
             "f_KoopmanLiftedQuadrotorModel",
-            [x, u, w, theta, x_init], [xdot]
+            [z0, z, u, w, theta], [zdot]
         )
 
 
@@ -470,15 +401,14 @@ def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     crazyflie system identification:
     https://www.research-collection.ethz.ch/handle/20.500.11850/214143
     """
-    cf_params = ModelParameters(
-        m=0.027,
-        a=a,
-        Ixx=1.6571710 * 10**-5,
-        Iyy=1.6655602 * 10**-5,
-        Izz=2.9261652 * 10**-5,
-        k=np.array((1.0, 1.0, 1.0, 1.0)),
-        c=np.array((0.005964552, 0.005964552, 0.005964552, 0.005964552)),
-        r=np.array((0.0283, 0.0283, -0.0283, -0.0283)),
-        s=np.array((0.0283, -0.0283, -0.0283, 0.0283)),
-    )
+    cf_params = ModelParameters()
+    cf_params.set_member("m", 0.027)
+    cf_params.set_member("a", a)
+    cf_params.set_member("Ixx", 1.6571710 * 10**-5)
+    cf_params.set_member("Iyy", 1.6655602 * 10**-5)
+    cf_params.set_member("Izz", 2.9261652 * 10**-5)
+    cf_params.set_member("k", np.ones(4))
+    cf_params.set_member("c", 0.005964552 * np.ones(4))
+    cf_params.set_member("r", 0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
+    cf_params.set_member("s", 0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
     return NonlinearQuadrotorModel(cf_params)

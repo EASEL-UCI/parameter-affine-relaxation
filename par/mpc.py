@@ -6,10 +6,11 @@ from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 import matplotlib
 
-from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
-                    ParameterAffineQuadrotorModel, KoopmanLiftedQuadrotorModel
+from par.dynamics.models import DynamicsModel, KoopmanLiftedQuadrotorModel
+from par.dynamics.vectors import State, Input, ModelParameters, \
+                                    DynamicsVectorList
 from par.config import STATE_CONFIG, KOOPMAN_CONFIG, INPUT_CONFIG
-from par.utils.config import get_default_vector, get_dimensions
+from par.utils.config import get_config_values, get_dimensions
 from par.utils.misc import is_none
 
 
@@ -32,53 +33,48 @@ class NMPC():
         self._Qf = Qf
         self._model = model
         self._sol = {}
-
         self._lbg = None
         self._ubg = None
 
         if type(model) == KoopmanLiftedQuadrotorModel:
             self._is_koopman = True
-            self._xref = get_default_vector(
-                "default_value",
-            )
-            self._lbx = get_default_vector(
-                "lower_bound", KOOPMAN_CONFIG, copies=model.order)
-            self._ubx = get_default_vector(
-                "upper_bound", KOOPMAN_CONFIG, copies=model.order)
+            self._lbx = State(get_config_values(
+                "lower_bound", KOOPMAN_CONFIG, copies=model.order))
+            self._ubx = State(get_config_values(
+                "upper_bound", KOOPMAN_CONFIG, copies=model.order))
         else:
             self._is_koopman = False
-            self._lbx = get_default_vector("lower_bound", STATE_CONFIG)
-            self._ubx = get_default_vector("upper_bound", STATE_CONFIG)
+            self._lbx = State(get_config_values("lower_bound", STATE_CONFIG))
+            self._ubx = State(get_config_values("upper_bound", STATE_CONFIG))
 
-        self._lbu = get_default_vector("lower_bound", INPUT_CONFIG)
-        self._ubu = get_default_vector("upper_bound", INPUT_CONFIG)
-        self._uk_guess = N * [get_default_vector("default_value", INPUT_CONFIG)]
+        self._lbu = Input(get_config_values("lower_bound", INPUT_CONFIG))
+        self._ubu = Input(get_config_values("upper_bound", INPUT_CONFIG))
+        self._theta = ModelParameters(self._model.get_default_parameter_vector())
+        self._us_guess = DynamicsVectorList(self._N * [Input()])
         self._solver = self._init_solver(is_verbose)
 
-    def get_state_trajectory(self) -> np.ndarray:
+    def get_predicted_states(self) -> DynamicsVectorList:
         nx = self._model.nx
         nu = self._model.nu
-        state_traj = []
-        for k in range(self._N + 1):
-            state_traj += [
-                np.array(self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten()
-            ]
-        return np.array(state_traj)
+        xs = DynamicsVectorList()
+        for k in range(1, self._N + 1):
+            xs.append(State(np.array(
+                self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
+        return xs
 
-    def get_input_trajectory(self) -> np.ndarray:
+    def get_predicted_inputs(self) -> DynamicsVectorList:
         nx = self._model.nx
         nu = self._model.nu
-        input_traj = []
+        us = DynamicsVectorList()
         for k in range(self._N):
-            input_traj += [np.array(
-                self._sol["x"][(k+1)*nx+k*nu : (k+1)*nx+(k+1)*nu]
-            ).flatten()]
-        return np.array(input_traj)
+            us.append(Input(np.array(
+                self._sol["x"][(k+1)*nx+k*nu : (k+1)*nx+(k+1)*nu]).flatten()))
+        return us
 
     def plot_trajectory(
         self,
-        xk=None,
-        uk=None,
+        xs=None,
+        us=None,
         dt=None,
         N=None,
         order=None,
@@ -87,47 +83,47 @@ class NMPC():
         Display the series of control inputs
         and trajectory over prediction horizon.
         """
-        if is_none(dt):
-            dt = self._dt
-        if is_none(N):
-            N = self._N
+        if is_none(dt): dt = self._dt
+        if is_none(N): N = self._N
 
         t = dt * np.arange(N)
         interp_N = 1000
         fig, axs = plt.subplots(5, figsize=(11, 9))
 
-        if is_none(uk):
-            uk = np.array(self.get_input_trajectory())
-
+        if is_none(us):
+            us = self.get_predicted_inputs().as_array()
+        else:
+            us = us.as_array()
         legend = ["u1", "u2", "u3", "u4"]
         self._plot_trajectory(
-            axs[0], t, uk, interp_N, legend,
+            axs[0], t, us, interp_N, legend,
             "squared motor\nang vel (rad/s)^2",
         )
 
-        if is_none(xk):
-            xk = np.array(self.get_state_trajectory())
-        if len(xk) > len(uk):
-            xk = xk[:len(uk), :]
-
+        if is_none(xs):
+            xs = self.get_predicted_states().as_array()
+        else:
+            xs = xs.as_array()
+        if len(xs) > len(us):
+            xs = xs[:len(us), :]
         legend = ["x", "y", "z"]
         self._plot_trajectory(
-            axs[1], t, xk[:,:3], interp_N, legend,
+            axs[1], t, xs[:,:3], interp_N, legend,
             "pos (m)"
         )
         legend = ["qw", "qx", "qy", "qz"]
         self._plot_trajectory(
-            axs[2], t, xk[:, 3:7], interp_N, legend,
+            axs[2], t, xs[:, 3:7], interp_N, legend,
             "att (quat)"
         )
         legend = ["vx", "vy", "vz"]
         self._plot_trajectory(
-            axs[3], t, xk[:, 7:10], interp_N, legend,
+            axs[3], t, xs[:, 7:10], interp_N, legend,
             "body frame\nvel (m/s)"
         )
         legend = ["wx", "wy", "wz"]
         self._plot_trajectory(
-            axs[4], t, xk[:, 10:13], interp_N, legend,
+            axs[4], t, xs[:, 10:13], interp_N, legend,
             "body frame\nang vel (rad/s)",
         )
 
@@ -138,54 +134,49 @@ class NMPC():
 
     def solve(
         self,
-        x: np.ndarray,
-        xref: List[np.ndarray],
+        x: State,
+        xref: DynamicsVectorList,
+        uref: DynamicsVectorList,
         theta=None,
         lbx=None,
         ubx=None,
         lbu=None,
         ubu=None,
-        xk_guess=None,
-        uk_guess=None,
+        xs_guess=None,
+        us_guess=None,
     ) -> dict:
+        assert len(xref.get()) == len(uref.get()) == self._N
         # Get default inequality constraints
-        if is_none(lbx):
-            lbx = list(self._lbx)
-        if is_none(ubx):
-            ubx = list(self._ubx)
-        if is_none(lbu):
-            lbu = list(self._lbu)
-        if is_none(ubu):
-            ubu = list(self._ubu)
-        if is_none(uk_guess):
-            uk_guess = self._uk_guess
-        if is_none(theta):
-                theta = self._model.get_default_parameter_vector()
+        if is_none(lbx): lbx = self._lbx
+        if is_none(ubx): ubx = self._ubx
+        if is_none(lbu): lbu = self._lbu
+        if is_none(ubu): ubu = self._ubu
+        if is_none(theta): theta = self._theta
+        if is_none(us_guess): us_guess = self._us_guess
 
-        if type(self._model) == KoopmanLiftedQuadrotorModel:
-            x_init = self._model.convert_nominal_to_koopman_initialization_state(x)
-            p = list(theta) + list(x_init)
-            x_lifted = self._model.convert_nominal_to_koopman_lifted_state(x)
-            lbd = list(x_lifted)
-            ubd = list(x_lifted)
-            if is_none(xk_guess):
-                x_lifted = x_lifted
-                xk_guess = (self._N + 1) * [x_lifted]
+        # Initialize the parameter argument
+        p = theta.as_list() #+ x.as_list()
+        if self._is_koopman:
+            p += list(x.get_zero_order_koopman_vector())
+            if is_none(xs_guess):
+                z = x.get_lifted_koopman_vector()
+                xs_guess = DynamicsVectorList(self._N * [z])
         else:
-            p = theta
-            lbd = list(x)
-            ubd = list(x)
-            if is_none(xk_guess):
-                xk_guess = (self._N + 1) * [x]
+            if is_none(xs_guess):
+                xs_guess = DynamicsVectorList(self._N * [x])
 
-        guess = list(xk_guess[0])
+        # Construct optimization arguments
+        lbd = x.as_list()
+        ubd = x.as_list()
+        guess = x.as_list()
         for k in range(self._N):
-            lbd += list(lbu) + list(lbx)
-            ubd += list(ubu) + list(ubx)
-            guess += list(uk_guess[k]) + list(xk_guess[k+1])
+            lbd += lbu.as_list() + lbx.as_list()
+            ubd += ubu.as_list() + ubx.as_list()
+            guess += us_guess.get(k).as_list() + xs_guess.get(k).as_list()
+            p += uref.get(k).as_list() + xref.get(k).as_list()
+
         self._sol = self._solver(
-            x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg
-        )
+            x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
         return self._sol
 
     def _init_solver(
@@ -194,18 +185,17 @@ class NMPC():
     ) -> dict:
         # Decision variable for state
         x0 = cs.SX.sym("x0", self._model.nx)
-
         # Constant for model parameters
         theta = cs.SX.sym("theta", self._model.ntheta)
         # Constant for koopman initialization
         if self._is_koopman:
-            x_init = cs.SX.sym("x_init", get_dimensions(KOOPMAN_CONFIG))
+            z0 = cs.SX.sym("z0", get_dimensions(KOOPMAN_CONFIG))
         else:
-            x_init = cs.SX()
+            z0 = cs.SX()
 
         # Variables for formulating NLP
+        p = [theta, z0]
         d = [x0]
-        p = [theta, x_init]
         g = []
         lbg = []
         ubg = []
@@ -214,30 +204,29 @@ class NMPC():
         # Formulate the nlp
         xk = x0
         for k in range(self._N):
-            # New NLP decision variable for control
+            # New decision variable for control
             uk = cs.SX.sym("u" + str(k), self._model.nu)
             d += [uk]
 
-            # New NLP parameters for reference tracking
-            xref_k = cs.SX.sym("xref" + str(k), self._model.nx)
-            uref_k = cs.SX.sym("uref" + str(k), self._model.nu)
-            p += [xref_k, uref_k]
-
-            # Add costs
-            J += self._get_stage_cost(x=xk, u=uk, xref=xref_k, uref=uref_k)
-            if k == self._N - 1:
-                J += self._get_terminal_cost(x=xk, xref=xref_k)
-
             # Get the state at the end of the time step
             if self._is_koopman:
-                xf = self._model.F(
-                    self._dt, x=xk, u=uk, theta=theta, x_init=x_init)
+                xf = self._model.F(self._dt, x=xk, u=uk, theta=theta, z0=z0)
             else:
                 xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
 
             # New NLP variable for state at the end of the interval
             xk = cs.SX.sym("x" + str(k+1), self._model.nx)
             d += [xk]
+
+            # New constants for reference tracking
+            uref_k = cs.SX.sym("uref" + str(k), self._model.nu)
+            xref_k = cs.SX.sym("xref" + str(k+1), self._model.nx)
+            p += [uref_k, xref_k]
+
+            # Add costs
+            J += self._get_stage_cost(x=xk, u=uk, xref=xref_k, uref=uref_k)
+            if k == self._N - 1:
+                J += self._get_terminal_cost(x=xk, xref=xref_k)
 
             # Add dynamics equality constraint
             g += [xf - xk]
@@ -256,9 +245,9 @@ class NMPC():
         # Create NLP solver
         nlp_prob = {"f": J, "x": d, "p": p, "g": g}
         if is_verbose:
-            opts = {"ipopt.hessian_approximation": "exact"}
+            opts = {}#{"ipopt.hessian_approximation": "exact"}
         else:
-            opts = {"ipopt.hessian_approximation": "exact",
+            opts = {#{"ipopt.hessian_approximation": "exact",
                 "ipopt.print_level": 0, "print_time": 0, "ipopt.sb": "yes"}
         #opts = {"error_on_fail": False}
         #return cs.qpsol("nlp_solver", "qpoases", nlp_prob)

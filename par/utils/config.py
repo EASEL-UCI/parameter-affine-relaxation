@@ -59,7 +59,7 @@ def symbolic(id: str, config: dict, copies=1) -> cs.SX:
     return cs.SX.sym(id, copies * config[id]["dimensions"])
 
 
-def get_default_vector(
+def get_config_values(
     id: str,
     config: dict,
     dimensions=None,

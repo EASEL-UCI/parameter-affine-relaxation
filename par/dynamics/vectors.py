@@ -1,15 +1,15 @@
-from typing import Union
+from typing import Union, List
 
 import numpy as np
 import casadi as cs
 
 from par.utils import quat, math
 from par.utils.misc import is_none, convert_casadi_to_numpy_vector
-from par.utils.config import get_dimensions, get_default_vector
+from par.utils.config import get_dimensions, get_config_values
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
-from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, STATE_CONFIG, \
-                        KOOPMAN_CONFIG
+from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
+                        STATE_CONFIG, KOOPMAN_CONFIG, INPUT_CONFIG
 
 
 class DynamicsVector():
@@ -23,9 +23,12 @@ class DynamicsVector():
         self._members = {}
         self.set_vector(vector)
 
-    def get_vector(self) -> np.ndarray:
+    def as_array(self) -> np.ndarray:
         vector = [member for member in self._members.values()]
         return np.hstack(vector)
+
+    def as_list(self) -> np.ndarray:
+        return list(self.as_array())
 
     def set_vector(self, vector: np.ndarray) -> None:
         assert len(vector) == self._dims
@@ -50,13 +53,63 @@ class DynamicsVector():
         self._members[id] = member
 
 
+class DynamicsVectorList(list):
+    def __init__(
+        self,
+        vector_list=[]
+    ) -> None:
+        self._list = []
+        self.append(vector_list)
+
+    def as_array(self) -> np.ndarray:
+        return np.array( [vec.as_array() for vec in self._list] )
+
+    def get(
+        self,
+        index=None
+    ) -> DynamicsVector:
+        if is_none(index):
+            return self._list
+        else:
+            return self._list[index]
+
+    def append(
+        self,
+        vectors: Union[DynamicsVector, List[DynamicsVector]]
+    ) -> None:
+        if type(vectors) == DynamicsVector or type(vectors) == ModelParameters \
+        or type(vectors) == State or type(vectors) == Input:
+            self._assert_type(vectors)
+            self._list += [vectors]
+        else:
+            map(self._assert_type, vectors)
+            self._list += vectors
+
+    def _assert_type(
+        self,
+        entry: DynamicsVector
+    ) -> None:
+        assert type(entry) == DynamicsVector or type(entry) == ModelParameters \
+            or type(entry) == State or type(entry) == Input
+
+
+class Input(DynamicsVector):
+    def __init__(
+        self,
+        u=None
+    ) -> None:
+        if is_none(u):
+            u = get_config_values("default_value", INPUT_CONFIG)
+        super().__init__(u, INPUT_CONFIG)
+
+
 class State(DynamicsVector):
     def __init__(
         self,
         x=None,
     ) -> None:
         if is_none(x):
-            x = get_default_vector("default_value", STATE_CONFIG)
+            x = get_config_values("default_value", STATE_CONFIG)
         super().__init__(x, STATE_CONFIG)
 
     def get_zero_order_koopman_vector(self) -> np.ndarray:
@@ -106,12 +159,13 @@ class ModelParameters(DynamicsVector):
         theta=None,
     ) -> None:
         if is_none(theta):
-            theta = get_default_vector("default_value", PARAMETER_CONFIG)
+            theta = get_config_values("default_value", PARAMETER_CONFIG)
         super().__init__(theta, PARAMETER_CONFIG)
 
     def get_affine_vector(self) -> np.ndarray:
         aff_members = self.get_affine_members()
-        theta_aff = [list(aff_members[id]) for id in RELAXED_PARAMETER_CONFIG.keys()]
+        theta_aff = \
+            [list(aff_members[id]) for id in RELAXED_PARAMETER_CONFIG.keys()]
         return np.hstack(theta_aff).flatten()
 
     def get_affine_members(self) -> dict:

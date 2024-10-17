@@ -9,7 +9,7 @@ import matplotlib
 
 from par.dynamics.models import NonlinearQuadrotorModel, ParameterAffineQuadrotorModel
 from par.config import STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
-from par.utils.config import get_default_vector
+from par.utils.config import get_config_values
 from par.utils.misc import is_none
 
 
@@ -33,14 +33,14 @@ class MHPE():
         self._xk = []
         self._uk = []
         self._wk = []
-        self._lb_theta = get_default_vector(
+        self._lb_theta = get_config_values(
             "lower_bound", model.parameter_config
         )
-        self._ub_theta = get_default_vector(
+        self._ub_theta = get_config_values(
             "upper_bound", model.parameter_config
         )
-        self._lbw = get_default_vector("lower_bound", NOISE_CONFIG)
-        self._ubw = get_default_vector("upper_bound", NOISE_CONFIG)
+        self._lbw = get_config_values("lower_bound", NOISE_CONFIG)
+        self._ubw = get_config_values("upper_bound", NOISE_CONFIG)
 
     def get_parameter_estimate(self) -> np.ndarray:
         return self._theta
