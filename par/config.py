@@ -166,10 +166,29 @@ INPUT_CONFIG = {
 
 
 NOISE_CONFIG = {
-    "PROCESS_NOISE": {
-        "dimensions": 13,
-        "lower_bound": BIG_NEGATIVE * np.ones(13),
-        "upper_bound": BIG_POSITIVE * np.ones(13),
+    "BODY_FRAME_LINEAR_VELOCITY": {
+        "dimensions": 3,
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
+    },
+    "ATTITUDE_RATE": {
+        "dimensions": 4,
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.hstack((1.0, np.zeros(3))),
+    },
+    "BODY_FRAME_LINEAR_ACCELERATION": {
+        "dimensions": 3,
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
+    },
+    "BODY_FRAME_ANGULAR_ACCELERATION": {
+        "dimensions": 3,
+        "lower_bound": BIG_NEGATIVE * np.ones(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
     },
 }
 
