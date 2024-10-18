@@ -20,16 +20,15 @@ class MHPE():
         M: int,
         P: np.ndarray,
         S: np.ndarray,
-        x0: State,
         model: DynamicsModel,
-        is_verbose=False,
+        x0: State = State(),
+        is_verbose: bool = False,
     ) -> None:
         assert type(model) == NonlinearQuadrotorModel \
             or type(model) == ParameterAffineQuadrotorModel
         self._dt = dt
         self._M = M
         self._P = P
-        self._S = S
         self._S = S
         self._model = model
 
@@ -49,8 +48,11 @@ class MHPE():
             "upper_bound", model.parameter_config))
         self._solver = self._init_solver(is_verbose)
 
-    def get_state_estimates(self) -> VectorList:
-        return self._xs
+    def reset_state_measurements(self, x0: State) -> None:
+        self._xs.set(x0)
+
+    def get_parameter_estimate(self) -> ModelParameters:
+        return self._theta
 
     def get_process_noise_estimates(self) -> VectorList:
         return self._ws

@@ -81,6 +81,17 @@ class VectorList():
         else:
             return self._list[index]
 
+    def set(
+        self,
+        vectors: Union[DynamicsVector, List[DynamicsVector]],
+        index: int = None,
+    ) -> None:
+        if is_none(index):
+            self.__init__(vectors)
+        else:
+            self._assert_type(vectors)
+            self._list[index] = vectors
+
     def pop(
         self,
         index: int,
