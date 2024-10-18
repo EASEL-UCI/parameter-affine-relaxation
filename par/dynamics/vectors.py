@@ -74,31 +74,43 @@ class DynamicsVectorList():
 
     def get(
         self,
-        index: int = None
+        index: int = None,
     ) -> DynamicsVector:
         if is_none(index):
             return self._list
         else:
             return self._list[index]
 
+    def pop(
+        self,
+        index: int,
+    ) -> DynamicsVector:
+        return self._list.pop(index)
+
     def append(
         self,
-        vectors: Union[DynamicsVector, List[DynamicsVector]]
+        vectors: Union[DynamicsVector, List[DynamicsVector]],
     ) -> None:
-        if type(vectors) == DynamicsVector or type(vectors) == ModelParameters \
-        or type(vectors) == State or type(vectors) == Input \
-        or type(vectors) == KoopmanLiftedState:
+        if self._check_type(vectors):
             self._assert_type(vectors)
             self._list += [vectors]
-        else:
+        elif type(vectors) == list:
             map(self._assert_type, vectors)
             self._list += vectors
+        else:
+            raise TypeError("Attempted to append invalid type!")
 
     def _assert_type(
         self,
-        entry: DynamicsVector
+        entry: DynamicsVector,
     ) -> None:
-        assert type(entry) == DynamicsVector or type(entry) == ModelParameters \
+        assert self._check_type(entry)
+
+    def _check_type(
+        self,
+        entry: DynamicsVector,
+    ) -> bool:
+        return type(entry) == DynamicsVector or type(entry) == ModelParameters \
             or type(entry) == State or type(entry) == Input \
             or type(entry) == KoopmanLiftedState
 
