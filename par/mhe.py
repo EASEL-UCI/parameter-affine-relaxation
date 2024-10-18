@@ -1,15 +1,14 @@
-from copy import copy
-from typing import List, Tuple, Union
+from typing import List, Union
 
 import casadi as cs
 import numpy as np
-from scipy.interpolate import make_interp_spline
-import matplotlib.pyplot as plt
-import matplotlib
 
-from par.dynamics.models import NonlinearQuadrotorModel, ParameterAffineQuadrotorModel
-from par.config import STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG
-from par.utils.config import get_config_values
+from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
+                                ParameterAffineQuadrotorModel
+from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
+                                    DynamicsVectorList
+from par.config import NOISE_CONFIG
+from par.utils.config import get_config_values, get_dimensions
 from par.utils.misc import is_none
 
 
@@ -21,105 +20,102 @@ class MHPE():
         M: int,
         P: np.ndarray,
         S: np.ndarray,
-        model: NonlinearQuadrotorModel
+        x0: State,
+        model: DynamicsModel,
+        is_verbose=False,
     ) -> None:
+        assert type(model) == NonlinearQuadrotorModel \
+            or type(model) == ParameterAffineQuadrotorModel
         self._dt = dt
         self._M = M
         self._P = P
         self._S = S
+        self._S = S
         self._model = model
+
         self._sol = {}
+        self._xs = DynamicsVectorList(x0)
+        self._us = DynamicsVectorList()
+        self._ws = DynamicsVectorList()
+        self._theta = ModelParameters(self._model.get_default_parameter_vector())
 
-        self._xk = []
-        self._uk = []
-        self._wk = []
-        self._lb_theta = get_config_values(
-            "lower_bound", model.parameter_config
-        )
-        self._ub_theta = get_config_values(
-            "upper_bound", model.parameter_config
-        )
-        self._lbw = get_config_values("lower_bound", NOISE_CONFIG)
-        self._ubw = get_config_values("upper_bound", NOISE_CONFIG)
+        self._lbg = []
+        self._ubg = []
+        self._lbw = ProcessNoise(get_config_values("lower_bound", NOISE_CONFIG))
+        self._ubw = ProcessNoise(get_config_values("upper_bound", NOISE_CONFIG))
+        self._lb_theta = ModelParameters(get_config_values(
+            "lower_bound", model.parameter_config))
+        self._ub_theta = ModelParameters(get_config_values(
+            "upper_bound", model.parameter_config))
+        self._solver = self._init_solver(is_verbose)
 
-    def get_parameter_estimate(self) -> np.ndarray:
-        return self._theta
+    def get_state_estimates(self) -> DynamicsVectorList:
+        return self._xs
 
-    def get_disturbance_estimates(self) -> List[np.ndarray]:
-        return self._wk
-
-    def plot_disturbances(self) -> None:
-        """
-        Display the series of control inputs
-        and trajectory over prediction horizon.
-        """
-        fig, axs = plt.subplots(4, figsize=(11, 9))
-        interp_N = 1000
-        t = self._dt * np.arange(self._N)
-
-        wk = np.array(self._wk)
-        legend = ["x", "y", "z"]
-        self._plot_trajectory(
-            axs[0], t, wk[:, 0:3], interp_N, legend,
-            "inertial frame\nvel noise"
-        )
-        legend = ["qw", "qx", "qy", "qz"]
-        self._plot_trajectory(
-            axs[1], t, wk[:, 3:7], interp_N, legend,
-            "attitude rate noise"
-        )
-        legend = ["x", "y", "z"]
-        self._plot_trajectory(
-            axs[2], t, wk[:, 7:10], interp_N, legend,
-            "body frame\naccel noise",
-        )
-        legend = ["x", "y", "z"]
-        self._plot_trajectory(
-            axs[3], t, wk[:, 10:13], interp_N, legend,
-            "body frame\nang accel noise",
-        )
-
-        for ax in axs.flat:
-            ax.set(xlabel="time (s)")
-            ax.label_outer()
-        plt.show()
+    def get_process_noise_estimates(self) -> DynamicsVectorList:
+        return self._ws
 
     def solve(
         self,
-        xM: np.ndarray,
-        uM: np.ndarray,
-        lb_theta=None,
-        ub_theta=None,
-        lbw=None,
-        ubw=None,
-        theta_ref=None,
-        wk_ref=None,
-        theta_warmstart=None,
-        wk_warmstart=None,
+        xM: State,
+        uM: Input,
+        lb_theta: ModelParameters = None,
+        ub_theta: ModelParameters = None,
+        lbw: ProcessNoise = None,
+        ubw: ProcessNoise = None,
+        theta_guess: ModelParameters = None,
+        ws_guess: ProcessNoise = None,
     ) -> dict:
-        # Update the trajectory history
+        # Update measurement history
         self._update_measurements(xM, uM)
 
-        # New decision variable for parameters
-        theta = cs.SX("theta", self._model.ntheta)
-        # New constant for initial state
-        x0 = cs.SX("x0", self._model.nx)
+        # Get default inequality constraints
+        if is_none(lb_theta): lb_theta = self._lb_theta
+        if is_none(ub_theta): ub_theta = self._ub_theta
+        if is_none(lbw): lbw = self._lbw
+        if is_none(ubw): ubw = self._ubw
+        if is_none(theta_guess): theta_guess = self._theta
+        if is_none(ws_guess): ws_guess = self._ws
 
-        # NLP variables
-        d = [theta]             # Decision variables
-        p = [x0]                # Constants
-        g = []                  # Equality constraints
-        lbg = []                # Inequality constraints
+        # Construct optimization arguments
+        guess = theta_guess.as_list() + ws_guess.as_list()
+        lbd = lb_theta.as_list()
+        ubd = ub_theta.as_list()
+        p = self._xs.get(0).as_list() + self._theta.as_list()
+        for k in range(self._M):
+            lbd += lbw.as_list()
+            ubd += ubw.as_list()
+            p += self._us.get(k).as_list() + self._xs.get(k + 1).as_list() \
+                    + self._ws.get(k).as_list()
+
+        # Solve
+        self._sol = self._solver(
+            x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
+        self._update_estimates()
+        return self._sol
+
+    def _init_solver(
+        self,
+        is_verbose: bool
+    ) -> dict:
+        # Decision variable for state
+        x0 = cs.SX.sym("x0", self._model.nx)
+        # Constant for model parameters
+        theta = cs.SX.sym("theta", self._model.ntheta)
+        # Constant for parameter estimate reference
+        theta_ref = cs.SX.sym("theta_ref", self._model.ntheta)
+
+        # Variables for formulating NLP
+        p = [x0, theta_ref]
+        d = [theta]
+        g = []
+        lbg = []
         ubg = []
-        J = 0.0                 # Accumulated Cost
-
-        # Get default disturbance reference values
-        if is_none(wk_ref):
-            wk_ref = self._wk
+        J = self._get_parameter_cost(theta, theta_ref)
 
         # Formulate the NLP
         xk = x0
-        for k in range(self._N):
+        for k in range(self._M):
             # New decision variable for process noise
             wk = cs.SX.sym("w" + str(k), self._model.nw)
             d += [wk]
@@ -129,130 +125,81 @@ class MHPE():
             p += [uk]
 
             # Get the state at the end of the time step
-            xf = self._model.F(xk, uk, theta, wk)
+            xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
 
-            # New constant for state at end of interval
-            xk = cs.SX.sym("x" + str(k+1), xk.shape)
+            # New constant for the state at the end of the interval
+            xk = cs.SX.sym("x" + str(k+1), self._model.nx)
             p += [xk]
 
-            # Add dynamics equality constraint
-            g += [xk - xf]
-            lbg += xk.shape[0] * [0.0]
-            ubg += xk.shape[0] * [0.0]
+            # New constant for disturbance reference tracking
+            wref_k = cs.SX.sym("wref" + str(k), self._model.nw)
+            p += [wref_k]
 
             # Add running cost
-            J += self._get_stage_cost(w=wk, w_ref=wk_ref[k])
+            J += self._get_stage_cost(wk, wref_k)
 
-        # Get default parameter reference values
-        if is_none(theta_ref):
-            theta_ref = self._theta
-
-        # Add parameter cost
-        J += self._get_terminal_cost(theta=theta, theta_ref=theta_ref)
+            # Add dynamics equality constraint
+            g += [xf - xk]
+            lbg += self._model.nx * [0.0]
+            ubg += self._model.nx * [0.0]
 
         # Concatenate decision variables and constraint terms
         d = cs.vertcat(*d)
+        p = cs.vertcat(*p)
         g = cs.vertcat(*g)
 
-        # Create a  nlp  solver
-        nlp_prob = {"f": J, "x": d, "p": p, "g": g, }
-        solver = cs.nlpsol("nlp_solver", "ipopt", nlp_prob,)
+        # Initialize equality constraint values
+        self._lbg = lbg
+        self._ubg = ubg
 
-        # Get default inequality constraints
-        if is_none(lb_theta):
-            lb_theta = self._lb_theta
-        if is_none(ub_theta):
-            ub_theta = self._ub_theta
-        if is_none(lbw):
-            lbw = self._lbw
-        if is_none(ubw):
-            ubw = self._ubw
-
-        # Get default warmstart values
-        if is_none(theta_warmstart):
-            theta_warmstart = self._theta
-        if is_none(wk_warmstart):
-            wk_warmstart = self._wk
-
-        # Build optimization arguments
-        lbd = list(lb_theta)
-        ubd = list(ub_theta)
-        dref = list(theta_ref)
-        warmstart = list(theta_warmstart)
-        for k in range(self._M):
-            lbd += list(lbw)
-            ubd += list(ubw)
-            dref += list(wk_ref[k])
-            warmstart += list(wk_warmstart[k])
-
-        # Solve and update estimates
-        self._sol = solver(x0=warmstart, lbx=lbd, ubx=ubd, lbg=lbg, ubg=ubg)
-        self._update_estimates()
-        return self._sol
+        # Create NLP solver
+        nlp_prob = {"f": J, "x": d, "p": p, "g": g}
+        opts = {"ipopt.max_iter": 3000} #{"ipopt.hessian_approximation": "exact"}
+        if not is_verbose:
+            opts["ipopt.print_level"] = 0
+            opts["print_time"] = 0
+            opts["ipopt.sb"] = "yes"
+            #opts["ipopt.hessian_approximation"] = "exact"
+        #opts = {"error_on_fail": False}
+        #return cs.qpsol("nlp_solver", "osqp", nlp_prob, opts)
+        return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
 
     def _update_measurements(
         self,
-        xf: np.ndarray,
-        uf: np.ndarray,
+        xM: State,
+        uM: State,
     ) -> None:
-        self._xk += [xf]
-        self._uk += [uf]
-        self._wk += [np.zeros(self._model.nw)]
-        if len(self._xk) < self._M \
-        or len(self._uk) < self._M \
-        or len(self._wk) < self._M:
+        self._xs.append(xM)
+        self._us.append(uM)
+        self._ws.append(ProcessNoise(np.zeros(self._model.nw)))
+        if len(self._xs.get()) < self._M + 1 or len(self._us.get()) < self._M \
+        or len(self._ws.get()) < self._M:
             return
         else:
-            self._xk.pop(0)
-            self._uk.pop(0)
-            self._wk.pop(0)
+            self._xs.pop(0)
+            self._us.pop(0)
+            self._ws.pop(0)
 
     def _update_estimates(self):
-        self._theta = self._sol["x"][0]
-        self._wk = []
+        self._theta = ModelParameters(np.array(self._sol["x"][0]).flatten())
+        ws = []
         for i in range(self._M):
             wk = self._sol["x"][1 + i*self._model.nw : 1 + (i+1)*self._model.nw]
-            self._wk += [np.array(wk)]
+            ws += [ProcessNoise(np.array(wk).flatten())]
+        self._ws = DynamicsVectorList(ws)
 
     def _get_stage_cost(
         self,
         w: cs.SX,
-        w_ref: np.ndarray,
+        wref: cs.SX,
     ) -> cs.SX:
-        err = w - w_ref
+        err = w - wref
         return err.T @ self._S @ err
 
-    def _get_terminal_cost(
+    def _get_parameter_cost(
         self,
         theta: cs.SX,
         theta_ref: np.ndarray,
     ) -> cs.SX:
         err = theta - theta_ref
         return err.T @ self._P @ err
-
-    def _plot_trajectory(
-        self,
-        ax: matplotlib.axes,
-        Xs: np.ndarray,
-        traj: np.ndarray,
-        interp_N: int,
-        legend: List[str],
-        ylabel: str,
-    ) -> None:
-        ax.set_ylabel(ylabel)
-        for i in range(traj.shape[1]):
-            x_interp = self._get_interpolation(Xs, Xs, interp_N)
-            y_interp = self._get_interpolation(Xs, traj[:, i], interp_N)
-            ax.plot(x_interp, y_interp, label=legend[i])
-        ax.legend()
-
-    def _get_interpolation(
-        self,
-        Xs: np.ndarray,
-        Ys: np.ndarray,
-        N: int,
-    ) -> np.ndarray:
-        spline_func = make_interp_spline(Xs, Ys)
-        interp_x = np.linspace(Xs.min(), Xs.max(), N)
-        interp_y = spline_func(interp_x)
-        return interp_y
