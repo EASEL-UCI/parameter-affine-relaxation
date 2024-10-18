@@ -62,11 +62,9 @@ def symbolic(id: str, config: dict, copies=1) -> cs.SX:
 def get_config_values(
     id: str,
     config: dict,
-    dimensions: int = None,
     copies: int = 1
 ) -> np.ndarray:
-    if is_none(dimensions):
-        dimensions = get_dimensions(config)
+    dims = get_dimensions(config)
     i = 0
     vector = []
     for config_id in config.keys():
@@ -78,8 +76,8 @@ def get_config_values(
             vector += copies * list(config[config_id][id])
 
         i += delta_i
-        if i > dimensions:
+        if i > dims:
             raise IndexError
-        elif i == dimensions:
+        elif i == dims:
             return np.array(vector)
     raise IndexError
