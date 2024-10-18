@@ -2,7 +2,7 @@
 
 import numpy as np
 from numpy.random import uniform
-from par.dynamics.vectors import State, Input, DynamicsVectorList
+from par.dynamics.vectors import State, Input, VectorList
 from par.dynamics.models import CrazyflieModel
 from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
@@ -23,14 +23,14 @@ x.set_member("ATTITUDE", random_unit_quaternion())
 x.set_member("BODY_FRAME_LINEAR_VELOCITY", uniform(-10.0, 10.0, size=3))
 x.set_member("BODY_FRAME_ANGULAR_VELOCITY", uniform(-10.0, 10.0, size=3))
 
-xref = DynamicsVectorList( N * [State()] )
-uref = DynamicsVectorList( N * [Input()] )
+xref = VectorList( N * [State()] )
+uref = VectorList( N * [Input()] )
 
 xs_guess = None
 us_guess = None
 
-xs = DynamicsVectorList()
-us = DynamicsVectorList()
+xs = VectorList()
+us = VectorList()
 
 
 sim_length = 100

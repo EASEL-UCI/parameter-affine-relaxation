@@ -61,7 +61,7 @@ class DynamicsVector():
         self._members[id] = member
 
 
-class DynamicsVectorList():
+class VectorList():
     def __init__(
         self,
         vector_list: List = [],

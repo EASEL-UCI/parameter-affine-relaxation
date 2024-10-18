@@ -8,7 +8,7 @@ import matplotlib
 
 from par.dynamics.models import DynamicsModel, KoopmanLiftedQuadrotorModel
 from par.dynamics.vectors import State, Input, ModelParameters, \
-                                    KoopmanLiftedState, DynamicsVectorList
+                                    KoopmanLiftedState, VectorList
 from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
 from par.utils.config import get_config_values, get_dimensions
 from par.utils.misc import is_none
@@ -56,13 +56,13 @@ class NMPC():
         self._lbu = Input(get_config_values("lower_bound", INPUT_CONFIG))
         self._ubu = Input(get_config_values("upper_bound", INPUT_CONFIG))
         self._theta = ModelParameters(self._model.get_default_parameter_vector())
-        self._us_guess = DynamicsVectorList(self._N * [Input()])
+        self._us_guess = VectorList(self._N * [Input()])
         self._solver = self._init_solver(is_verbose)
 
-    def get_predicted_states(self) -> DynamicsVectorList:
+    def get_predicted_states(self) -> VectorList:
         nx = self._model.nx
         nu = self._model.nu
-        xs = DynamicsVectorList()
+        xs = VectorList()
         for k in range(1, self._N + 1):
             if self._is_koopman:
                 xs.append(KoopmanLiftedState(np.array(
@@ -74,10 +74,10 @@ class NMPC():
                     self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
         return xs
 
-    def get_predicted_inputs(self) -> DynamicsVectorList:
+    def get_predicted_inputs(self) -> VectorList:
         nx = self._model.nx
         nu = self._model.nu
-        us = DynamicsVectorList()
+        us = VectorList()
         for k in range(self._N):
             us.append(Input(np.array(
                 self._sol["x"][(k+1)*nx+k*nu : (k+1)*nx+(k+1)*nu]).flatten()))
@@ -85,8 +85,8 @@ class NMPC():
 
     def plot_trajectory(
         self,
-        xs: DynamicsVectorList = None,
-        us: DynamicsVectorList = None,
+        xs: VectorList = None,
+        us: VectorList = None,
         dt: float = None,
         N: float = None,
         order: int = None,
@@ -148,15 +148,15 @@ class NMPC():
     def solve(
         self,
         x: Union[State, KoopmanLiftedState],
-        xref: DynamicsVectorList,
-        uref: DynamicsVectorList,
+        xref: VectorList,
+        uref: VectorList,
         theta: ModelParameters = None,
         lbx: State = None,
         ubx: State = None,
         lbu: Input = None,
         ubu: Input = None,
-        xs_guess: DynamicsVectorList = None,
-        us_guess: DynamicsVectorList = None,
+        xs_guess: VectorList = None,
+        us_guess: VectorList = None,
     ) -> dict:
         # Enforce correct horizon length
         assert len(xref.get()) == len(uref.get()) == self._N
@@ -168,7 +168,7 @@ class NMPC():
         if is_none(ubu): ubu = self._ubu
         if is_none(theta): theta = self._theta
         if is_none(us_guess): us_guess = self._us_guess
-        if is_none(xs_guess): xs_guess = DynamicsVectorList(self._N * [x])
+        if is_none(xs_guess): xs_guess = VectorList(self._N * [x])
 
         # Initialize the parameter argument
         p = theta.as_list()

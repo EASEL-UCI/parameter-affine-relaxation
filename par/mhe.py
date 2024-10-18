@@ -6,7 +6,7 @@ import numpy as np
 from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
                                 ParameterAffineQuadrotorModel
 from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
-                                    DynamicsVectorList
+                                    VectorList
 from par.config import NOISE_CONFIG
 from par.utils.config import get_config_values, get_dimensions
 from par.utils.misc import is_none
@@ -34,9 +34,9 @@ class MHPE():
         self._model = model
 
         self._sol = {}
-        self._xs = DynamicsVectorList(x0)
-        self._us = DynamicsVectorList()
-        self._ws = DynamicsVectorList()
+        self._xs = VectorList(x0)
+        self._us = VectorList()
+        self._ws = VectorList()
         self._theta = ModelParameters(self._model.get_default_parameter_vector())
 
         self._lbg = []
@@ -49,10 +49,10 @@ class MHPE():
             "upper_bound", model.parameter_config))
         self._solver = self._init_solver(is_verbose)
 
-    def get_state_estimates(self) -> DynamicsVectorList:
+    def get_state_estimates(self) -> VectorList:
         return self._xs
 
-    def get_process_noise_estimates(self) -> DynamicsVectorList:
+    def get_process_noise_estimates(self) -> VectorList:
         return self._ws
 
     def solve(
@@ -186,7 +186,7 @@ class MHPE():
         for i in range(self._M):
             wk = self._sol["x"][1 + i*self._model.nw : 1 + (i+1)*self._model.nw]
             ws += [ProcessNoise(np.array(wk).flatten())]
-        self._ws = DynamicsVectorList(ws)
+        self._ws = VectorList(ws)
 
     def _get_stage_cost(
         self,

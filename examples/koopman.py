@@ -3,7 +3,7 @@
 import numpy as np
 from numpy.random import uniform
 from par.dynamics.vectors import State, Input, KoopmanLiftedState, \
-                                    DynamicsVectorList
+                                    VectorList
 from par.dynamics.models import CrazyflieModel, KoopmanLiftedQuadrotorModel
 from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
@@ -42,8 +42,8 @@ z = x.as_lifted_koopman(J, order)
 lbu = Input(np.zeros(4))
 ubu = Input(0.15 * np.ones(4))
 
-zref = DynamicsVectorList( N * [KoopmanLiftedState(order=order)] )
-uref = DynamicsVectorList( N * [Input()] )
+zref = VectorList( N * [KoopmanLiftedState(order=order)] )
+uref = VectorList( N * [Input()] )
 
 km_mpc.solve(x=z, xref=zref, uref=uref, lbu=lbu, ubu=ubu)
 km_mpc.plot_trajectory()
