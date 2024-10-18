@@ -8,7 +8,7 @@ from par.utils.misc import is_none, convert_casadi_to_numpy_vector
 from par.utils.config import get_dimensions, get_config_values
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
-from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
+from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, NOISE_CONFIG,\
                         STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
 
 
@@ -201,3 +201,11 @@ class ModelParameters(DynamicsVector):
         aff_members["IYY"] = (Ixx - Izz) / Iyy
         aff_members["IZZ"] = (Iyy - Ixx) / Izz
         return aff_members
+
+
+class ProcessNoise(DynamicsVector):
+    def __init__(
+        self,
+        w: np.ndarray = None,
+    ) -> None:
+        super().__init__(NOISE_CONFIG, w)
