@@ -4,100 +4,94 @@ from par.constants import BIG_NEGATIVE, BIG_POSITIVE, GRAVITY
 
 
 PARAMETER_CONFIG = {
-    "m":     {
+    "m": {
         "dimensions": 1,
         "lower_bound": 0.0,
         "upper_bound": BIG_POSITIVE,
         "default_value": 0.0,
     },
-    "a":     {
+    "a": {
         "dimensions": 3,
         "lower_bound": np.zeros(3),
         "upper_bound": BIG_POSITIVE * np.zeros(3),
         "default_value": np.zeros(3),
     },
-    "Ixx":   {
+    "Ixx": {
         "dimensions": 1,
         "lower_bound": 0.0,
         "upper_bound": BIG_POSITIVE,
         "default_value": 0.0,
     },
-    "Iyy":   {
+    "Iyy": {
         "dimensions": 1,
         "lower_bound": 0.0,
         "upper_bound": BIG_POSITIVE,
         "default_value": 0.0,
     },
-    "Izz":   {
+    "Izz": {
         "dimensions": 1,
         "lower_bound": 0.0,
         "upper_bound": BIG_POSITIVE,
         "default_value": 0.0,
     },
-    "k":     {
-        "dimensions": 4,
-        "lower_bound": np.zeros(4),
-        "upper_bound": BIG_POSITIVE * np.zeros(4),
-        "default_value": np.zeros(4),
-    },
-    "c":     {
-        "dimensions": 4,
-        "lower_bound": np.zeros(4),
-        "upper_bound": BIG_POSITIVE * np.zeros(4),
-        "default_value": np.zeros(4),
-    },
-    "r":     {
+    "r": {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
         "default_value": np.zeros(4),
     },
-    "s":     {
+    "s": {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
+        "default_value": np.zeros(4),
+    },
+    "b": {
+        "dimensions": 4,
+        "lower_bound": np.zeros(4),
+        "upper_bound": BIG_POSITIVE * np.zeros(4),
         "default_value": np.zeros(4),
     },
 }
 
 
 RELAXED_PARAMETER_CONFIG = {
-    "A":     {
+    "M": {
+        "dimensions": 1,
+        "lower_bound": 0.0,
+        "upper_bound": BIG_POSITIVE * np.zeros(3),
+    },
+    "A": {
         "dimensions": 3,
         "lower_bound": np.zeros(3),
         "upper_bound": BIG_POSITIVE * np.zeros(3),
     },
-    "K":     {
-        "dimensions": 4,
-        "lower_bound": np.zeros(4),
-        "upper_bound": BIG_POSITIVE * np.zeros(4),
-    },
-    "S":   {
+    "S": {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
     },
-    "R":   {
+    "R": {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
     },
-    "C":   {
+    "B": {
         "dimensions": 4,
         "lower_bound": np.zeros(4),
         "upper_bound": BIG_POSITIVE * np.zeros(4)
     },
-    "IXX":     {
+    "IXX": {
         "dimensions": 1,
         "lower_bound": BIG_NEGATIVE,
         "upper_bound": BIG_POSITIVE,
     },
-    "IYY":     {
+    "IYY": {
         "dimensions": 1,
         "lower_bound": BIG_NEGATIVE,
         "upper_bound": BIG_POSITIVE,
     },
-    "IZZ":     {
+    "IZZ": {
         "dimensions": 1,
         "lower_bound": BIG_NEGATIVE,
         "upper_bound": BIG_POSITIVE,
@@ -133,7 +127,7 @@ STATE_CONFIG = {
 }
 
 
-KOOPMAN_CONFIG = {
+KOOPMAN_STATE_CONFIG = {
     "BODY_FRAME_POSITION": {
         "dimensions": 3,
         "lower_bound": BIG_NEGATIVE * np.ones(3),
@@ -162,7 +156,7 @@ KOOPMAN_CONFIG = {
 
 
 INPUT_CONFIG = {
-    "SQUARED_MOTOR_ANGULAR_VELOCITY": {
+    "THRUSTS": {
         "dimensions": 4,
         "lower_bound": np.zeros(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
@@ -174,6 +168,15 @@ INPUT_CONFIG = {
 NOISE_CONFIG = {
     "PROCESS_NOISE": {
         "dimensions": 13,
+        "lower_bound": BIG_NEGATIVE * np.ones(13),
+        "upper_bound": BIG_POSITIVE * np.ones(13),
+    },
+}
+
+
+KOOPMAN_NOISE_CONFIG = {
+    "PROCESS_NOISE": {
+        "dimensions": 12,
         "lower_bound": BIG_NEGATIVE * np.ones(13),
         "upper_bound": BIG_POSITIVE * np.ones(13),
     },

@@ -9,7 +9,7 @@ import matplotlib
 from par.dynamics.models import DynamicsModel, KoopmanLiftedQuadrotorModel
 from par.dynamics.vectors import State, Input, ModelParameters, \
                                     KoopmanLiftedState, DynamicsVectorList
-from par.config import STATE_CONFIG, KOOPMAN_CONFIG, INPUT_CONFIG
+from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
 from par.utils.config import get_config_values, get_dimensions
 from par.utils.misc import is_none
 
@@ -40,12 +40,12 @@ class NMPC():
             self._is_koopman = True
             self._lbx = KoopmanLiftedState(
                 get_config_values(
-                    "lower_bound", KOOPMAN_CONFIG, copies=model.order),
+                    "lower_bound", model.state_config, copies=model.order),
                 self._model.order
             )
             self._ubx = KoopmanLiftedState(
                 get_config_values(
-                    "upper_bound", KOOPMAN_CONFIG, copies=model.order),
+                    "upper_bound", KOOPMAN_STATE_CONFIG, copies=model.order),
                 self._model.order
             )
         else:
@@ -112,7 +112,7 @@ class NMPC():
             "squared motor\nang vel (rad/s)^2",
         )
 
-        if self._is_koopman:
+        if not self._is_koopman:
             if is_none(xs):
                 xs = self.get_predicted_states().as_array()
             else:
@@ -203,7 +203,7 @@ class NMPC():
         theta = cs.SX.sym("theta", self._model.ntheta)
         # Constant for koopman initialization
         if self._is_koopman:
-            z0 = cs.SX.sym("z0", get_dimensions(KOOPMAN_CONFIG))
+            z0 = cs.SX.sym("z0", get_dimensions(KOOPMAN_STATE_CONFIG))
         else:
             z0 = cs.SX()
 

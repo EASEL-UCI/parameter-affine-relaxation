@@ -9,7 +9,7 @@ from par.utils.config import get_dimensions, get_config_values
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
 from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, \
-                        STATE_CONFIG, KOOPMAN_CONFIG, INPUT_CONFIG
+                        STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
 
 
 class DynamicsVector():
@@ -26,6 +26,10 @@ class DynamicsVector():
         if is_none(vector):
             vector = get_config_values("default_value", config, copies=copies)
         self.set_vector(vector)
+
+    @property
+    def config(self) -> dict:
+        return self._config
 
     def as_array(self) -> np.ndarray:
         vector = [member for member in self._members.values()]
@@ -113,7 +117,7 @@ class KoopmanLiftedState(DynamicsVector):
         z: np.ndarray = None,
         order: int = 1,
     ) -> None:
-        super().__init__(KOOPMAN_CONFIG, z, order)
+        super().__init__(KOOPMAN_STATE_CONFIG, z, order)
 
     def get_zero_order_array(self) -> np.ndarray:
         vector = [member[: self._config[id]["dimensions"]] \
@@ -130,12 +134,12 @@ class State(DynamicsVector):
 
     def as_zero_order_koopman(self) -> KoopmanLiftedState:
         z0_members = self.get_zero_order_koopman_members()
-        z0 = [list(z0_members[id]) for id in KOOPMAN_CONFIG.keys()]
+        z0 = [list(z0_members[id]) for id in KOOPMAN_STATE_CONFIG.keys()]
         return KoopmanLiftedState(np.hstack(z0).flatten(), 1)
 
     def as_lifted_koopman(self, J: np.ndarray, order: int) -> KoopmanLiftedState:
         z_members = self.get_lifted_koopman_members(J, order)
-        z = [list(z_members[id]) for id in KOOPMAN_CONFIG.keys()]
+        z = [list(z_members[id]) for id in KOOPMAN_STATE_CONFIG.keys()]
         return KoopmanLiftedState(np.hstack(z).flatten(), order)
 
     def get_zero_order_koopman_members(self) -> dict:
@@ -184,16 +188,15 @@ class ModelParameters(DynamicsVector):
 
     def get_affine_members(self) -> dict:
         m = self._members["m"]
-        k = self._members["k"]
         Ixx = self._members["Ixx"]
         Iyy = self._members["Iyy"]
         Izz = self._members["Izz"]
         aff_members = {}
+        aff_members["M"] = 1 / m
         aff_members["A"] = self._members["a"] / m
-        aff_members["K"] = k / m
-        aff_members["S"] = k * self._members["s"] / Ixx
-        aff_members["R"] = k * self._members["r"] / Iyy
-        aff_members["C"] = self._members["c"] / Izz
+        aff_members["S"] = self._members["s"] / Ixx
+        aff_members["R"] = self._members["r"] / Iyy
+        aff_members["B"] = self._members["b"] / Izz
         aff_members["IXX"] = (Izz - Iyy) / Ixx
         aff_members["IYY"] = (Ixx - Izz) / Iyy
         aff_members["IZZ"] = (Iyy - Ixx) / Izz
