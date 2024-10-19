@@ -55,7 +55,7 @@ class NMPC():
 
         self._lbu = Input(get_config_values("lower_bound", INPUT_CONFIG))
         self._ubu = Input(get_config_values("upper_bound", INPUT_CONFIG))
-        self._theta = ModelParameters(self._model.get_default_parameter_vector())
+        self._theta = ModelParameters(self._model.get_default_parameter_array())
         self._us_guess = VectorList(self._N * [Input()])
         self._solver = self._init_solver(is_verbose)
 

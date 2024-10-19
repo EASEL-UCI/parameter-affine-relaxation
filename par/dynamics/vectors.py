@@ -4,7 +4,7 @@ import numpy as np
 import casadi as cs
 
 from par.utils import quat, math
-from par.utils.misc import is_none, convert_casadi_to_numpy_vector
+from par.utils.misc import is_none, convert_casadi_to_numpy_array
 from par.utils.config import get_dimensions, get_config_values
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
@@ -16,29 +16,29 @@ class DynamicsVector():
     def __init__(
         self,
         config: dict,
-        vector: np.ndarray = None,
+        array: np.ndarray = None,
         copies: int = 1,
     ) -> None:
         self._n = copies
         self._dims = get_dimensions(config)
         self._config = config
         self._members = {}
-        if is_none(vector):
-            vector = get_config_values("default_value", config, copies=copies)
-        self.set_vector(vector)
+        if is_none(array):
+            array = get_config_values("default_value", config, copies=copies)
+        self.set(array)
 
     @property
     def config(self) -> dict:
         return self._config
 
     def as_array(self) -> np.ndarray:
-        vector = [member for member in self._members.values()]
-        return np.hstack(vector)
+        nonflat_list = [member for member in self._members.values()]
+        return np.hstack(nonflat_list)
 
     def as_list(self) -> List:
         return list(self.as_array())
 
-    def set_vector(self, vector: np.ndarray) -> None:
+    def set(self, vector: np.ndarray) -> None:
         assert len(vector) == self._n * self._dims
         i = 0
         for id, subconfig in self._config.items():
@@ -99,7 +99,10 @@ class VectorList():
         self,
         vectors: Union[DynamicsVector, List[DynamicsVector]],
     ) -> None:
-        if self._check_type(vectors):
+        if type(vectors) == list:
+            map(self._assert_type, vectors)
+            self._list += vectors
+        elif self._check_type(vectors):
             self._assert_type(vectors)
             self._list += [vectors]
         elif type(vectors) == list:
@@ -128,6 +131,8 @@ class VectorList():
         try:
             valid_types[type(entry)]
         except KeyError:
+            return False
+        except TypeError:
             return False
         finally:
             return True
@@ -191,10 +196,10 @@ class State(DynamicsVector):
         vs = velocity.get_vs(z0_members["BODY_FRAME_LINEAR_VELOCITY"], ws)
         gs = gravity.get_gs(z0_members["BODY_FRAME_GRAVITY"], ws)
 
-        ps_vec = convert_casadi_to_numpy_vector(cs.vertcat(*ps))
-        vs_vec = convert_casadi_to_numpy_vector(cs.vertcat(*vs))
-        gs_vec = convert_casadi_to_numpy_vector(cs.vertcat(*gs))
-        ws_vec = convert_casadi_to_numpy_vector(cs.vertcat(*ws))
+        ps_vec = convert_casadi_to_numpy_array(cs.vertcat(*ps))
+        vs_vec = convert_casadi_to_numpy_array(cs.vertcat(*vs))
+        gs_vec = convert_casadi_to_numpy_array(cs.vertcat(*gs))
+        ws_vec = convert_casadi_to_numpy_array(cs.vertcat(*ws))
         z_members = {}
         z_members["BODY_FRAME_POSITION"] = ps_vec
         z_members["BODY_FRAME_LINEAR_VELOCITY"] = vs_vec
@@ -210,7 +215,7 @@ class ModelParameters(DynamicsVector):
     ) -> None:
         super().__init__(PARAMETER_CONFIG, theta)
 
-    def get_affine_vector(self) -> np.ndarray:
+    def get_affine_array(self) -> np.ndarray:
         aff_members = self.get_affine_members()
         theta_aff = \
             [list(aff_members[id]) for id in RELAXED_PARAMETER_CONFIG.keys()]

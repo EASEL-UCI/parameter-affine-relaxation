@@ -8,7 +8,7 @@ from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
 from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
                                     VectorList
 from par.config import NOISE_CONFIG
-from par.utils.config import get_config_values, get_dimensions
+from par.utils.config import get_config_values
 from par.utils.misc import is_none
 
 
@@ -36,7 +36,7 @@ class MHPE():
         self._xs = VectorList(x0)
         self._us = VectorList()
         self._ws = VectorList()
-        self._theta = ModelParameters(self._model.get_default_parameter_vector())
+        self._theta = ModelParameters(self._model.get_default_parameter_array())
 
         self._lbg = []
         self._ubg = []
