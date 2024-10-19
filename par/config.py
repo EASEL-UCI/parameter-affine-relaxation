@@ -174,8 +174,8 @@ PROCESS_NOISE_CONFIG = {
     },
     "ATTITUDE_RATE": {
         "dimensions": 4,
-        "lower_bound": BIG_NEGATIVE * np.ones(3),
-        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "lower_bound": BIG_NEGATIVE * np.ones(4),
+        "upper_bound": BIG_POSITIVE * np.ones(4),
         "default_value": np.zeros(4),
     },
     "BODY_FRAME_LINEAR_ACCELERATION": {
