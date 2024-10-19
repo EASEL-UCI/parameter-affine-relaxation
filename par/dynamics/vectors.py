@@ -169,12 +169,12 @@ class State(DynamicsVector):
 
     def as_zero_order_koopman(self) -> KoopmanLiftedState:
         z0_members = self.get_zero_order_koopman_members()
-        z0 = [list(z0_members[id]) for id in KOOPMAN_STATE_CONFIG.keys()]
+        z0 = [z0_members[id] for id in KOOPMAN_STATE_CONFIG.keys()]
         return KoopmanLiftedState(np.hstack(z0).flatten(), 1)
 
     def as_lifted_koopman(self, J: np.ndarray, order: int) -> KoopmanLiftedState:
         z_members = self.get_lifted_koopman_members(J, order)
-        z = [list(z_members[id]) for id in KOOPMAN_STATE_CONFIG.keys()]
+        z = [z_members[id] for id in KOOPMAN_STATE_CONFIG.keys()]
         return KoopmanLiftedState(np.hstack(z).flatten(), order)
 
     def get_zero_order_koopman_members(self) -> dict:
@@ -218,7 +218,7 @@ class ModelParameters(DynamicsVector):
     def get_affine_array(self) -> np.ndarray:
         aff_members = self.get_affine_members()
         theta_aff = \
-            [list(aff_members[id]) for id in RELAXED_PARAMETER_CONFIG.keys()]
+            [aff_members[id] for id in RELAXED_PARAMETER_CONFIG.keys()]
         return np.hstack(theta_aff).flatten()
 
     def get_affine_members(self) -> dict:

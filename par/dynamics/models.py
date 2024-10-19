@@ -252,7 +252,8 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
             cs.SX.zeros(3),
         ))
 
-        # Parameter-dependent dynamics
+        # Parameter-coupled dynamics
+        u = symbolic("THRUSTS", INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             cs.SX.ones(1, self.nu),
@@ -267,13 +268,10 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
             ),
         ))
         I = cs.SX(cs.diag(cs.vertcat(wB[1]*wB[2], wB[0]*wB[2], wB[0]*wB[1])))
-        u = symbolic("THRUSTS", INPUT_CONFIG)
-
-        # Parameter-coupled dynamics
         G = cs.SX(cs.vertcat(
-            cs.SX.zeros(7, 6 + 4 * self.nu),
+            cs.SX.zeros(7, 7 + 3 * self.nu),
             cs.horzcat( K @ u, -A, cs.SX.zeros(3, 3 + 3 * self.nu) ),
-            cs.horzcat( cs.SX.zeros(3, 3 + self.nu), B, -I ),
+            cs.horzcat( cs.SX.zeros(3, 4), B, -I ),
         ))
 
         # Additive process noise

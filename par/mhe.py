@@ -40,16 +40,19 @@ class MHPE():
 
         self._lbg = []
         self._ubg = []
-        self._lbw = ProcessNoise(get_config_values("lower_bound", PROCESS_NOISE_CONFIG))
-        self._ubw = ProcessNoise(get_config_values("upper_bound", PROCESS_NOISE_CONFIG))
+        self._lbw = ProcessNoise(get_config_values(
+            "lower_bound", PROCESS_NOISE_CONFIG))
+        self._ubw = ProcessNoise(get_config_values(
+            "upper_bound", PROCESS_NOISE_CONFIG))
         self._lb_theta = ModelParameters(get_config_values(
-            "lower_bound", model.parameter_config))
+            "lower_bound", model.parameters.config))
         self._ub_theta = ModelParameters(get_config_values(
-            "upper_bound", model.parameter_config))
+            "upper_bound", model.parameters.config))
         self._solver = self._init_solver(is_verbose)
 
-    def reset_state_measurements(self, x0: State) -> None:
+    def reset_measurements(self, x0: State) -> None:
         self._xs = VectorList(x0)
+        self._ws = VectorList()
 
     def get_parameter_estimate(self) -> ModelParameters:
         return self._theta
@@ -66,10 +69,15 @@ class MHPE():
         lbw: ProcessNoise = None,
         ubw: ProcessNoise = None,
         theta_guess: ModelParameters = None,
-        ws_guess: ProcessNoise = None,
+        ws_guess: VectorList = None,
     ) -> dict:
         # Update measurement history
         self._update_measurements(xM, uM)
+
+        # Skip this solver call if measurement history isn't full length
+        if not self._measurements_are_full():
+            print("not solving")
+            return self._sol
 
         # Get default inequality constraints
         if is_none(lb_theta): lb_theta = self._lb_theta
@@ -80,7 +88,7 @@ class MHPE():
         if is_none(ws_guess): ws_guess = self._ws
 
         # Construct optimization arguments
-        guess = theta_guess.as_list() + ws_guess.as_list()
+        guess = theta_guess.as_list() + list(ws_guess.as_array().flatten())
         lbd = lb_theta.as_list()
         ubd = ub_theta.as_list()
         p = self._xs.get(0).as_list() + self._theta.as_list()
@@ -166,27 +174,35 @@ class MHPE():
         #return cs.qpsol("nlp_solver", "osqp", nlp_prob, opts)
         return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
 
+    def _measurements_are_full(
+        self
+    ) -> bool:
+        if len(self._xs.get()) < self._M+1 or len(self._us.get()) < self._M \
+        or len(self._ws.get()) < self._M:
+            return False
+        else:
+            return True
+
     def _update_measurements(
         self,
         xM: State,
         uM: State,
     ) -> None:
-        self._xs.append(xM)
-        self._us.append(uM)
-        self._ws.append(ProcessNoise(np.zeros(self._model.nw)))
-        if len(self._xs.get()) < self._M + 1 or len(self._us.get()) < self._M \
-        or len(self._ws.get()) < self._M:
-            return
-        else:
+        if self._measurements_are_full():
             self._xs.pop(0)
             self._us.pop(0)
             self._ws.pop(0)
+        self._xs.append(xM)
+        self._us.append(uM)
+        self._ws.append(ProcessNoise(np.zeros(self._model.nw)))
 
     def _update_estimates(self):
-        self._theta = ModelParameters(np.array(self._sol["x"][0]).flatten())
+        self._theta = ModelParameters(
+            np.array(self._sol["x"][:self._model.ntheta]).flatten())
         ws = []
         for i in range(self._M):
-            wk = self._sol["x"][1 + i*self._model.nw : 1 + (i+1)*self._model.nw]
+            wk = self._sol["x"][self._model.ntheta + i*self._model.nw : \
+                                self._model.ntheta + (i+1)*self._model.nw]
             ws += [ProcessNoise(np.array(wk).flatten())]
         self._ws = VectorList(ws)
 
