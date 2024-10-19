@@ -49,7 +49,7 @@ class MHPE():
         self._solver = self._init_solver(is_verbose)
 
     def reset_state_measurements(self, x0: State) -> None:
-        self._xs.set(x0)
+        self._xs = VectorList(x0)
 
     def get_parameter_estimate(self) -> ModelParameters:
         return self._theta

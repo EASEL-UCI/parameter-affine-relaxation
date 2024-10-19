@@ -83,14 +83,11 @@ class VectorList():
 
     def set(
         self,
+        index: int,
         vectors: Union[DynamicsVector, List[DynamicsVector]],
-        index: int = None,
     ) -> None:
-        if is_none(index):
-            self.__init__(vectors)
-        else:
-            self._assert_type(vectors)
-            self._list[index] = vectors
+        self._assert_type(vectors)
+        self._list[index] = vectors
 
     def pop(
         self,
@@ -121,9 +118,19 @@ class VectorList():
         self,
         entry: DynamicsVector,
     ) -> bool:
-        return type(entry) == DynamicsVector or type(entry) == ModelParameters \
-            or type(entry) == State or type(entry) == Input \
-            or type(entry) == KoopmanLiftedState
+        valid_types = {
+            DynamicsVector: DynamicsVector,
+            ModelParameters: ModelParameters,
+            State: State,
+            Input: Input,
+            KoopmanLiftedState: KoopmanLiftedState
+        }
+        try:
+            valid_types[type(entry)]
+        except KeyError:
+            return False
+        finally:
+            return True
 
 
 class Input(DynamicsVector):
