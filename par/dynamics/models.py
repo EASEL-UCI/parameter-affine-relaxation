@@ -4,7 +4,7 @@ import casadi as cs
 import numpy as np
 
 from par.utils import quat
-from par.dynamics.vectors import Input, ModelParameters
+from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise
 from par.koopman.dynamics import get_state_matrix, get_input_matrix
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
@@ -84,6 +84,21 @@ class DynamicsModel():
     def order(self)-> int:
         return self._order
 
+    def step_sim(
+        self,
+        dt: float,
+        x: State,
+        u: Input = None,
+        w: ProcessNoise = None,
+        theta: ModelParameters = None,
+    ) -> State:
+        if is_none(u): u = Input()
+        if is_none(w): w = ProcessNoise()
+        if is_none(theta): theta = self._parameters
+        xf = self.F(
+            dt, x.as_array(), u.as_array(), w.as_array(), theta.as_array())
+        return State(xf)
+
     def F(
         self,
         dt: float,
@@ -146,7 +161,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         ubu: Input = Input(get_config_values("upper_bound", INPUT_CONFIG)),
     ) -> None:
         super().__init__(
-            parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG, 1)
+            parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1)
         self._set_model()
 
     def get_default_parameter_array(self) -> np.ndarray:
@@ -213,7 +228,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         ubu: Input = Input(get_config_values("upper_bound", INPUT_CONFIG)),
     ) -> None:
         super().__init__(
-            parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, NOISE_CONFIG, 1)
+            parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1)
         self._set_affine_model()
 
     def get_default_parameter_array(self) -> np.ndarray:
@@ -287,7 +302,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
     ) -> None:
         super().__init__(
             parameters, lbu, ubu, KOOPMAN_STATE_CONFIG, INPUT_CONFIG,
-            KOOPMAN_NOISE_CONFIG, observables_order
+            KOOPMAN_PROCESS_NOISE_CONFIG, observables_order
         )
         self._set_lifted_model()
 

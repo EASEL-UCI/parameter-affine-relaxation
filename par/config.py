@@ -165,7 +165,7 @@ INPUT_CONFIG = {
 }
 
 
-NOISE_CONFIG = {
+PROCESS_NOISE_CONFIG = {
     "BODY_FRAME_LINEAR_VELOCITY": {
         "dimensions": 3,
         "lower_bound": BIG_NEGATIVE * np.ones(3),
@@ -176,7 +176,7 @@ NOISE_CONFIG = {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(3),
         "upper_bound": BIG_POSITIVE * np.ones(3),
-        "default_value": np.hstack((1.0, np.zeros(3))),
+        "default_value": np.zeros(4),
     },
     "BODY_FRAME_LINEAR_ACCELERATION": {
         "dimensions": 3,
@@ -193,7 +193,7 @@ NOISE_CONFIG = {
 }
 
 
-KOOPMAN_NOISE_CONFIG = {
+KOOPMAN_PROCESS_NOISE_CONFIG = {
     "PROCESS_NOISE": {
         "dimensions": 12,
         "lower_bound": BIG_NEGATIVE * np.ones(13),

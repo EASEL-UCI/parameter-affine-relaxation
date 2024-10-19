@@ -8,7 +8,7 @@ from par.utils.misc import is_none, convert_casadi_to_numpy_array
 from par.utils.config import get_dimensions, get_config_values
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
-from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, NOISE_CONFIG,\
+from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, PROCESS_NOISE_CONFIG,\
                         STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
 
 
@@ -243,4 +243,4 @@ class ProcessNoise(DynamicsVector):
         self,
         w: np.ndarray = None,
     ) -> None:
-        super().__init__(NOISE_CONFIG, w)
+        super().__init__(PROCESS_NOISE_CONFIG, w)

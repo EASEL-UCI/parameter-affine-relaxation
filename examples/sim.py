@@ -2,7 +2,7 @@
 
 import numpy as np
 from numpy.random import uniform
-from par.dynamics.vectors import State, Input, VectorList
+from par.dynamics.vectors import State, Input, ProcessNoise, VectorList
 from par.dynamics.models import CrazyflieModel
 from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
@@ -10,10 +10,10 @@ from par.mpc import NMPC
 
 dt = 0.1
 N = 10
-Q = np.diag(np.hstack(( 10.0 * np.ones(3), 5.0 * np.ones(4), 1.0 * np.ones(6) )))
-R = 0.01 * np.eye(4)
-Qf = 2.0 * Q
 model = CrazyflieModel()
+Q = np.eye(model.nx)
+R = 0.001 * np.eye(model.nu)
+Qf = 2.0 * Q
 nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model, is_verbose=False)
 
 
@@ -22,6 +22,8 @@ x.set_member("POSITION", uniform(-10.0, 10.0, size=3))
 x.set_member("ATTITUDE", random_unit_quaternion())
 x.set_member("BODY_FRAME_LINEAR_VELOCITY", uniform(-10.0, 10.0, size=3))
 x.set_member("BODY_FRAME_ANGULAR_VELOCITY", uniform(-10.0, 10.0, size=3))
+
+w = ProcessNoise()
 
 xref = VectorList( N * [State()] )
 uref = VectorList( N * [Input()] )
@@ -45,11 +47,13 @@ for k in range(sim_length):
     u = us_guess.get(0)
 
     # Generate Guassian noise on the second order terms
-    second_order_noise = np.random.normal(loc=1.0, scale=1.0, size=6)
-    w = np.hstack((np.zeros(7), second_order_noise))
+    lin_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
+    ang_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
+    w.set_member("BODY_FRAME_LINEAR_ACCELERATION", lin_acc_noise)
+    w.set_member("BODY_FRAME_ANGULAR_ACCELERATION", ang_acc_noise)
 
     # Update current state and trajectory history
-    x = State(model.F(dt=dt, x=x.as_array(), u=u.as_array(), w=w))
+    x = model.step_sim(dt=dt, x=x, u=u, w=w)
     xs.append(x)
     us.append(u)
 

@@ -7,7 +7,7 @@ from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
                                 ParameterAffineQuadrotorModel
 from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
                                     VectorList
-from par.config import NOISE_CONFIG
+from par.config import PROCESS_NOISE_CONFIG
 from par.utils.config import get_config_values
 from par.utils.misc import is_none
 
@@ -40,8 +40,8 @@ class MHPE():
 
         self._lbg = []
         self._ubg = []
-        self._lbw = ProcessNoise(get_config_values("lower_bound", NOISE_CONFIG))
-        self._ubw = ProcessNoise(get_config_values("upper_bound", NOISE_CONFIG))
+        self._lbw = ProcessNoise(get_config_values("lower_bound", PROCESS_NOISE_CONFIG))
+        self._ubw = ProcessNoise(get_config_values("upper_bound", PROCESS_NOISE_CONFIG))
         self._lb_theta = ModelParameters(get_config_values(
             "lower_bound", model.parameter_config))
         self._ub_theta = ModelParameters(get_config_values(
