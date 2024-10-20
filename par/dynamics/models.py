@@ -4,7 +4,8 @@ import casadi as cs
 import numpy as np
 
 from par.utils import quat
-from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise
+from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
+                                    AffineModelParameters
 from par.koopman.dynamics import get_state_matrix, get_input_matrix
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
@@ -16,7 +17,7 @@ from par.config import *
 class DynamicsModel():
     def __init__(
         self,
-        parameters: ModelParameters,
+        parameters: Union[ModelParameters, AffineModelParameters],
         lbu: Input,
         ubu: Input,
         state_config: dict,
@@ -34,13 +35,13 @@ class DynamicsModel():
         self._ubu = ubu
 
     @property
-    def parameters(self) -> ModelParameters:
+    def parameters(self) -> Union[ModelParameters, AffineModelParameters]:
         return self._parameters
 
     @parameters.setter
     def parameters(
         self,
-        parameters: ModelParameters
+        parameters: Union[ModelParameters, AffineModelParameters]
     ) -> None:
         self._parameters = parameters
 
@@ -90,7 +91,7 @@ class DynamicsModel():
         x: State,
         u: Input = None,
         w: ProcessNoise = None,
-        theta: ModelParameters = None,
+        theta: Union[ModelParameters, AffineModelParameters] = None,
     ) -> State:
         if is_none(u): u = Input()
         if is_none(w): w = ProcessNoise()
@@ -123,9 +124,9 @@ class DynamicsModel():
         if is_none(self._f):
             raise Exception("Model has no continuous-time dynamics!")
         if is_none(theta):
-            theta = self.get_default_parameter_array()
+            theta = self.parameters.as_array()
         if is_none(w):
-            w = np.zeros(self.nw)
+            w = ProcessNoise().as_array()
         if type(u) == np.ndarray:
             u = np.clip(u, self._lbu.as_array(), self._ubu.as_array())
         return self._f(x, u, w, theta)
@@ -145,13 +146,6 @@ class DynamicsModel():
         k4 = f(x + dt * k3, u, w, theta)
         return x + dt/6 * (k1 +2*k2 +2*k3 +k4)
 
-    def check_parameters(self) -> None:
-        if is_none(self._parameters):
-            raise Exception("Model has no parameter values!")
-
-    def get_default_parameter_array(self) -> None:
-        raise NotImplementedError("Parameter vector getter not implemented!")
-
 
 class NonlinearQuadrotorModel(DynamicsModel):
     def __init__(
@@ -163,10 +157,6 @@ class NonlinearQuadrotorModel(DynamicsModel):
         super().__init__(
             parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1)
         self._set_model()
-
-    def get_default_parameter_array(self) -> np.ndarray:
-        super().check_parameters()
-        return self._parameters.as_array()
 
     def _set_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
@@ -223,17 +213,13 @@ class NonlinearQuadrotorModel(DynamicsModel):
 class ParameterAffineQuadrotorModel(DynamicsModel):
     def __init__(
         self,
-        parameters: ModelParameters = ModelParameters(),
+        parameters: AffineModelParameters = AffineModelParameters(),
         lbu: Input = Input(get_config_values("lower_bound", INPUT_CONFIG)),
         ubu: Input = Input(get_config_values("upper_bound", INPUT_CONFIG)),
     ) -> None:
         super().__init__(
             parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1)
         self._set_affine_model()
-
-    def get_default_parameter_array(self) -> np.ndarray:
-        super().check_parameters()
-        return self._parameters.get_affine_array()
 
     def _set_affine_model(self) -> None:
         p = symbolic("POSITION", STATE_CONFIG)
@@ -304,10 +290,6 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         )
         self._set_lifted_model()
 
-    def get_default_parameter_array(self) -> np.ndarray:
-        super().check_parameters()
-        return self._parameters.as_array()
-
     def F(
         self,
         dt: float,
@@ -318,9 +300,9 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
         if is_none(theta):
-            theta = self.get_default_parameter_array()
+            theta = self.parameters.as_array()
         if is_none(w):
-            w = np.zeros(self.nw)
+            w = ProcessNoise().as_array()
         xf = self.rk4(self.f, dt, z0, x, u, w, theta)
         if type(xf) == cs.DM:
             return np.array(xf).flatten()
@@ -338,9 +320,9 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         if is_none(self._f):
             raise Exception("Model has no continuous-time dynamics!")
         if is_none(theta):
-            theta = self.get_default_parameter_array()
+            theta = self.parameters.as_array()
         if is_none(w):
-            w = np.zeros(self.nw)
+            w = ProcessNoise().as_array()
         return self._f(z0, x, u, w, theta)
 
     def rk4(

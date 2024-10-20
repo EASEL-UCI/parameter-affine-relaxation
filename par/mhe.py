@@ -6,7 +6,8 @@ import numpy as np
 from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
                                 ParameterAffineQuadrotorModel
 from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
-                                    VectorList
+                                    AffineModelParameters, VectorList
+from par.constants import BIG_NEGATIVE, BIG_POSITIVE
 from par.config import PROCESS_NOISE_CONFIG
 from par.utils.config import get_config_values
 from par.utils.misc import is_none
@@ -36,25 +37,34 @@ class MHPE():
         self._xs = VectorList(x0)
         self._us = VectorList()
         self._ws = VectorList()
-        self._theta = ModelParameters(self._model.get_default_parameter_array())
+        self._theta = self._model.parameters
 
         self._lbg = []
         self._ubg = []
+        self._lba = BIG_NEGATIVE * np.ones(M * model.nx)
+        self._uba = BIG_POSITIVE * np.ones(M * model.nx)
         self._lbw = ProcessNoise(get_config_values(
             "lower_bound", PROCESS_NOISE_CONFIG))
         self._ubw = ProcessNoise(get_config_values(
             "upper_bound", PROCESS_NOISE_CONFIG))
-        self._lb_theta = ModelParameters(get_config_values(
-            "lower_bound", model.parameters.config))
-        self._ub_theta = ModelParameters(get_config_values(
-            "upper_bound", model.parameters.config))
+
+        if type(model) == ParameterAffineQuadrotorModel:
+            self._lb_theta = AffineModelParameters(get_config_values(
+                "lower_bound", model.parameters.config))
+            self._ub_theta = AffineModelParameters(get_config_values(
+                "upper_bound", model.parameters.config))
+        else:
+            self._lb_theta = ModelParameters(get_config_values(
+                "lower_bound", model.parameters.config))
+            self._ub_theta = ModelParameters(get_config_values(
+                "upper_bound", model.parameters.config))
         self._solver = self._init_solver(is_verbose)
 
     def reset_measurements(self, x0: State) -> None:
         self._xs = VectorList(x0)
         self._ws = VectorList()
 
-    def get_parameter_estimate(self) -> ModelParameters:
+    def get_parameter_estimate(self) -> Union[ModelParameters, AffineModelParameters]:
         return self._theta
 
     def get_process_noise_estimates(self) -> VectorList:
@@ -64,8 +74,8 @@ class MHPE():
         self,
         xM: State,
         uM: Input,
-        lb_theta: ModelParameters = None,
-        ub_theta: ModelParameters = None,
+        lb_theta: Union[ModelParameters, AffineModelParameters] = None,
+        ub_theta: Union[ModelParameters, AffineModelParameters] = None,
         lbw: ProcessNoise = None,
         ubw: ProcessNoise = None,
         theta_guess: ModelParameters = None,
@@ -76,7 +86,7 @@ class MHPE():
 
         # Skip this solver call if measurement history isn't full length
         if not self._measurements_are_full():
-            print("not solving")
+            print("Input more measurements before solving!")
             return self._sol
 
         # Get default inequality constraints
@@ -108,14 +118,14 @@ class MHPE():
         self,
         is_verbose: bool
     ) -> dict:
-        # Decision variable for state
+        # Constant for state
         x0 = cs.SX.sym("x0", self._model.nx)
-        # Constant for model parameters
+        # Decision variable for model parameters
         theta = cs.SX.sym("theta", self._model.ntheta)
-        # Constant for parameter estimate reference
+        # Constant for parameter reference
         theta_ref = cs.SX.sym("theta_ref", self._model.ntheta)
 
-        # Variables for formulating NLP
+        # Arguments for formulating NLP
         p = [x0, theta_ref]
         d = [theta]
         g = []
@@ -126,16 +136,16 @@ class MHPE():
         # Formulate the NLP
         xk = x0
         for k in range(self._M):
-            # New decision variable for process noise
-            wk = cs.SX.sym("w" + str(k), self._model.nw)
-            d += [wk]
-
             # New constant for control input
             uk = cs.SX.sym("u" + str(k), self._model.nu)
             p += [uk]
 
+            # New decision variable for process noise
+            wk = cs.SX.sym("w" + str(k), self._model.nw)
+            d += [wk]
+
             # Get the state at the end of the time step
-            xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
+            xf = self._model.F(dt=self._dt, x=xk, u=uk, w=wk, theta=theta)
 
             # New constant for the state at the end of the interval
             xk = cs.SX.sym("x" + str(k+1), self._model.nx)
@@ -170,8 +180,8 @@ class MHPE():
             opts["print_time"] = 0
             opts["ipopt.sb"] = "yes"
             #opts["ipopt.hessian_approximation"] = "exact"
-        #opts = {"error_on_fail": False}
-        #return cs.qpsol("nlp_solver", "osqp", nlp_prob, opts)
+        #opts = {"print_problem": False, "print_time": False, "qpoases.printLevel": None}
+        #return cs.qpsol("qp_solver", "qpoases", nlp_prob, opts)
         return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
 
     def _measurements_are_full(
@@ -194,7 +204,7 @@ class MHPE():
             self._ws.pop(0)
         self._xs.append(xM)
         self._us.append(uM)
-        self._ws.append(ProcessNoise(np.zeros(self._model.nw)))
+        self._ws.append(ProcessNoise())
 
     def _update_estimates(self):
         self._theta = ModelParameters(

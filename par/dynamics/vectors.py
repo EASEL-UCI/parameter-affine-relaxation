@@ -126,7 +126,8 @@ class VectorList():
             ModelParameters: ModelParameters,
             State: State,
             Input: Input,
-            KoopmanLiftedState: KoopmanLiftedState
+            KoopmanLiftedState: KoopmanLiftedState,
+            AffineModelParameters: AffineModelParameters,
         }
         try:
             valid_types[type(entry)]
@@ -208,6 +209,14 @@ class State(DynamicsVector):
         return z_members
 
 
+class AffineModelParameters(DynamicsVector):
+    def __init__(
+        self,
+        theta_aff: np.ndarray = None,
+    ) -> None:
+        super().__init__(RELAXED_PARAMETER_CONFIG, theta_aff)
+
+
 class ModelParameters(DynamicsVector):
     def __init__(
         self,
@@ -215,11 +224,11 @@ class ModelParameters(DynamicsVector):
     ) -> None:
         super().__init__(PARAMETER_CONFIG, theta)
 
-    def get_affine_array(self) -> np.ndarray:
+    def as_affine(self) -> AffineModelParameters:
         aff_members = self.get_affine_members()
         theta_aff = \
             [aff_members[id] for id in RELAXED_PARAMETER_CONFIG.keys()]
-        return np.hstack(theta_aff).flatten()
+        return AffineModelParameters(np.hstack(theta_aff).flatten())
 
     def get_affine_members(self) -> dict:
         m = self._members["m"]

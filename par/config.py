@@ -59,42 +59,50 @@ RELAXED_PARAMETER_CONFIG = {
     "M": {
         "dimensions": 1,
         "lower_bound": 0.0,
-        "upper_bound": BIG_POSITIVE * np.zeros(3),
+        "upper_bound": BIG_POSITIVE,
+        "default_value": 0.0,
     },
     "A": {
         "dimensions": 3,
         "lower_bound": np.zeros(3),
-        "upper_bound": BIG_POSITIVE * np.zeros(3),
+        "upper_bound": BIG_POSITIVE * np.ones(3),
+        "default_value": np.zeros(3),
     },
     "S": {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
+        "default_value": np.zeros(4),
     },
     "R": {
         "dimensions": 4,
         "lower_bound": BIG_NEGATIVE * np.ones(4),
         "upper_bound": BIG_POSITIVE * np.ones(4),
+        "default_value": np.zeros(4),
     },
     "B": {
         "dimensions": 4,
         "lower_bound": np.zeros(4),
-        "upper_bound": BIG_POSITIVE * np.zeros(4)
+        "upper_bound": BIG_POSITIVE * np.ones(4),
+        "default_value": np.zeros(4),
     },
     "IXX": {
         "dimensions": 1,
         "lower_bound": BIG_NEGATIVE,
         "upper_bound": BIG_POSITIVE,
+        "default_value": 0.0,
     },
     "IYY": {
         "dimensions": 1,
         "lower_bound": BIG_NEGATIVE,
         "upper_bound": BIG_POSITIVE,
+        "default_value": 0.0,
     },
     "IZZ": {
         "dimensions": 1,
         "lower_bound": BIG_NEGATIVE,
         "upper_bound": BIG_POSITIVE,
+        "default_value": 0.0,
     },
 }
 
