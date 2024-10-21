@@ -3,16 +3,18 @@
 import numpy as np
 from numpy.random import uniform
 from par.dynamics.vectors import State, Input, VectorList
-from par.dynamics.models import CrazyflieModel
+from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel
 from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
 
 
 dt = 0.1
 N = 50
-model = CrazyflieModel()
+model_nl = CrazyflieModel()
+theta_aff = model_nl.parameters.as_affine()
+model = ParameterAffineQuadrotorModel(theta_aff, model_nl.lbu, model_nl.ubu)
 Q = np.eye(model.nx)
-R = np.eye(model.nu)
+R = 0.01 * np.eye(model.nu)
 Qf = 2.0 * Q
 nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model, is_verbose=True)
 
