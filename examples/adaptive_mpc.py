@@ -13,19 +13,19 @@ from par.mhe import MHPE
 # Perturb model parameters
 model_inacc = CrazyflieModel(0.1 * np.ones(3))
 param_nominal = model_inacc.parameters
-perturb = np.random.uniform(low=0.5, high=1.5, size=model_inacc.ntheta)
+perturb = np.random.uniform(low=0.75, high=1.25, size=model_inacc.ntheta)
 param_perturb = ModelParameters(perturb * param_nominal.as_array())
 model_acc = NonlinearQuadrotorModel(param_perturb, model_inacc.lbu, model_inacc.ubu)
 
 # Init MHPE
-dt = 0.1
+dt = 0.05
 M = 10
 P = np.eye(model_inacc.ntheta)
 S = np.eye(model_inacc.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, is_verbose=False)
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="ipopt")
 
 # Init MPC
-N = 10
+N = 20
 Q = np.eye(model_inacc.nx)
 R = 0.01 * np.eye(model_inacc.nu)
 Qf = 2.0 * Q
@@ -48,7 +48,7 @@ print(lb_theta.as_array())
 print(ub_theta.as_array())
 
 # MPC args
-theta_hat = model_inacc.parameters
+theta = model_inacc.parameters
 xref = VectorList( N * [State()] )
 uref = VectorList( N * [Input()] )
 xs_guess = None
@@ -64,7 +64,7 @@ sim_len = 100
 for k in range(sim_len):
     # Solve, update warmstarts, and get the control input
     nmpc.solve(
-        x=x, xref=xref, uref=uref, theta=theta_hat,
+        x=x, xref=xref, uref=uref, theta=theta,
         lbu=model_inacc.lbu, ubu=model_inacc.ubu,
         xs_guess=xs_guess, us_guess=us_guess
     )
@@ -85,10 +85,21 @@ for k in range(sim_len):
 
     # Get parameter estimate
     mhpe.solve(x, u)
-    theta_hat = mhpe.get_parameter_estimate()
+    theta = mhpe.get_parameter_estimate()
 
     print(f"\ninput {k}: \n{u.as_array()}")
     print(f"\n\n\nstate {k+1}: \n{x.as_array()}")
-    print(f"\nparameter estimate {k+1}: \n{theta_hat.as_array()}")
+    print(f"\nparameter estimate {k+1}: \n{theta.as_array()}")
+print(f"\nnominal affine parameter: \n{model_inacc.parameters.as_array()}")
+print(f"\ntrue affine parameter: \n{model_acc.parameters.as_array()}")
+
+normalized_errors = np.zeros(model_acc.ntheta)
+for i in range(model_acc.ntheta):
+    theta_acc = model_acc.parameters.as_array()[i]
+    normalized_errors[i] = ( theta.as_array()[i] - theta_acc ) / theta_acc
+
+print(f"\nFinal parameter estimate error: {
+    np.linalg.norm(normalized_errors)
+}")
 
 nmpc.plot_trajectory(xs=xs, us=us, dt=dt, N=sim_len)

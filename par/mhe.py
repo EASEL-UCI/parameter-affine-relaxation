@@ -8,7 +8,7 @@ from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
 from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
                                     AffineModelParameters, VectorList
 from par.constants import BIG_NEGATIVE, BIG_POSITIVE
-from par.config import PROCESS_NOISE_CONFIG
+from par.config import PROCESS_NOISE_CONFIG, QP_SOLVER_CONFIG
 from par.utils.config import get_config_values
 from par.utils.misc import is_none
 
@@ -23,7 +23,7 @@ class MHPE():
         S: np.ndarray,
         model: DynamicsModel,
         x0: State = State(),
-        is_verbose: bool = False,
+        plugin: str = "ipopt",
     ) -> None:
         assert type(model) == NonlinearQuadrotorModel \
             or type(model) == ParameterAffineQuadrotorModel
@@ -32,6 +32,7 @@ class MHPE():
         self._P = P
         self._S = S
         self._model = model
+        self._plugin = plugin
 
         self._sol = {}
         self._xs = VectorList(x0)
@@ -58,7 +59,7 @@ class MHPE():
                 "lower_bound", model.parameters.config))
             self._ub_theta = ModelParameters(get_config_values(
                 "upper_bound", model.parameters.config))
-        self._solver = self._init_solver(is_verbose)
+        self._solver = self._init_solver()
 
     def reset_measurements(self, x0: State) -> None:
         self._xs = VectorList(x0)
@@ -86,7 +87,7 @@ class MHPE():
 
         # Skip this solver call if measurement history isn't full length
         if not self._measurements_are_full():
-            print("Input more measurements before solving!")
+            print("\nInput more measurements before solving!\n")
             return self._sol
 
         # Get default inequality constraints
@@ -114,10 +115,7 @@ class MHPE():
         self._update_estimates()
         return self._sol
 
-    def _init_solver(
-        self,
-        is_verbose: bool
-    ) -> dict:
+    def _init_solver(self) -> dict:
         # Constant for state
         x0 = cs.SX.sym("x0", self._model.nx)
         # Decision variable for model parameters
@@ -173,16 +171,20 @@ class MHPE():
         self._ubg = ubg
 
         # Create NLP solver
+        opts = {"error_on_fail": False}
         nlp_prob = {"f": J, "x": d, "p": p, "g": g}
-        opts = {"ipopt.max_iter": 3000} #{"ipopt.hessian_approximation": "exact"}
-        if not is_verbose:
-            opts["ipopt.print_level"] = 0
-            opts["print_time"] = 0
-            opts["ipopt.sb"] = "yes"
-            #opts["ipopt.hessian_approximation"] = "exact"
-        #opts = {"print_problem": False, "print_time": False, "qpoases.printLevel": None}
-        #return cs.qpsol("qp_solver", "qpoases", nlp_prob, opts)
-        return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
+        if self._is_qp():
+            return cs.qpsol("qp_solver", self._plugin, nlp_prob, opts)
+        else:
+            '''
+            if self._plugin == "ipopt":
+                opts = {"ipopt.max_iter": 3000, "ipopt.hessian_approximation": "exact"}
+                if not is_verbose:
+                    opts["ipopt.print_level"] = 0
+                    opts["print_time"] = 0
+                    opts["ipopt.sb"] = "yes"
+            '''
+            return cs.nlpsol("nlp_solver", self._plugin, nlp_prob, opts)
 
     def _measurements_are_full(
         self
@@ -231,3 +233,14 @@ class MHPE():
     ) -> cs.SX:
         err = theta - theta_ref
         return err.T @ self._P @ err
+
+    def _is_qp(
+        self,
+    ) -> bool:
+        try:
+            QP_SOLVER_CONFIG[self._plugin]
+            return True
+        except KeyError:
+            return False
+        except TypeError:
+            return False

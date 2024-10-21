@@ -208,3 +208,10 @@ KOOPMAN_PROCESS_NOISE_CONFIG = {
         "upper_bound": BIG_POSITIVE * np.ones(13),
     },
 }
+
+
+QP_SOLVER_CONFIG = {
+    "qpoases": "qpoases",
+    "osqp": "osqp",
+    "proxqp": "proxqp",
+}
