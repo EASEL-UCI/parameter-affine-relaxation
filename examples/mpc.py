@@ -8,10 +8,15 @@ from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
 
 
-dt = 0.1
-N = 10
+dt = 0.05
+N = 20
 model = CrazyflieModel()
-Q = np.eye(model.nx)
+Q_diag = State()
+Q_diag.set_member("POSITION", 10.0 * np.ones(3))
+Q_diag.set_member("ATTITUDE", 1.0 * np.ones(4))
+Q_diag.set_member("BODY_FRAME_LINEAR_VELOCITY", np.ones(3))
+Q_diag.set_member("BODY_FRAME_ANGULAR_VELOCITY", 10.0 * np.ones(3))
+Q = np.diag(Q_diag.as_array())
 R = 0.001 * np.eye(model.nu)
 Qf = 2.0 * Q
 nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model, is_verbose=False)
@@ -35,7 +40,7 @@ xs = VectorList()
 us = VectorList()
 
 
-sim_length = 100
+sim_length = 200
 for k in range(sim_length):
     # Solve, update warmstarts, and get the control input
     nmpc.solve(
