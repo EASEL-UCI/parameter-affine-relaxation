@@ -414,23 +414,44 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
 #TODO: add more models
 def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     """
-    crazyflie system identification: https://arxiv.org/pdf/1608.05786
+    Crazyflie system identification: https://arxiv.org/pdf/1608.05786
     """
-    cf_params = ModelParameters()
-    cf_params.set_member("m", 0.027)
-    cf_params.set_member("a", a)
-    cf_params.set_member("Ixx", 1.436 * 10**-5)
-    cf_params.set_member("Iyy", 1.395 * 10**-5)
-    cf_params.set_member("Izz", 2.173 * 10**-5)
-    cf_params.set_member("r", 0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
-    cf_params.set_member("s", 0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
-    k = 3.1582 * 10**-10
-    c = 7.9379 * 10**-12
-    cf_params.set_member("b", (c / k) * np.ones(4))
+    params = ModelParameters()
+    params.set_member("m", 0.027)
+    params.set_member("a", a)
+    params.set_member("Ixx", 1.436 * 10**-5)
+    params.set_member("Iyy", 1.395 * 10**-5)
+    params.set_member("Izz", 2.173 * 10**-5)
+    params.set_member("r", 0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
+    params.set_member("s", 0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
+    k = 3.1582e-10
+    c = 7.9379e-12
+    params.set_member("b", (c / k) * np.ones(4))
 
     pwm_to_rpm = lambda pwm: 0.2685 * pwm + 4070.3
     pwm_min = 0
     pwm_max = 65535
     lbu = Input(k * pwm_to_rpm(pwm_min)**2 * np.ones(4))
     ubu = Input(k * pwm_to_rpm(pwm_max)**2 * np.ones(4))
-    return NonlinearQuadrotorModel(cf_params, lbu, ubu)
+    return NonlinearQuadrotorModel(params, lbu, ubu)
+
+
+def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
+    """
+    Asymmetric quadrotor identification: https://ieeexplore.ieee.org/document/9476871
+    """
+    params = ModelParameters()
+    params.set_member("m", 2.5)
+    params.set_member("a", a)
+    params.set_member("Ixx", 54.7)
+    params.set_member("Iyy", 15.6)
+    params.set_member("Izz", 57.2)
+    params.set_member("r", 0.14 * np.array([1.0, 1.0, -1.0, -1.0]))
+    params.set_member("s", 0.315 * np.array([1.0, -1.0, -1.0, 1.0]))
+    k = 1.6e-5
+    c = 1.7e-6
+    params.set_member("b", (c / k) * np.ones(4))
+
+    lbu = Input(np.zeros(4))
+    ubu = Input(params.get_member("m") * GRAVITY / 0.7 * np.ones(4))
+    return NonlinearQuadrotorModel(params, lbu, ubu)
