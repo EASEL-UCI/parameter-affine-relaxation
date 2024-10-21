@@ -453,5 +453,26 @@ def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member("b", (c / k) * np.ones(4))
 
     lbu = Input(np.zeros(4))
-    ubu = Input(params.get_member("m") * GRAVITY / 0.7 * np.ones(4))
+    ubu = Input(params.get_member("m") * GRAVITY / 0.5 * np.ones(4))
+    return NonlinearQuadrotorModel(params, lbu, ubu)
+
+
+def FusionOneQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
+    """
+    Fusion 1 quadrotor identification: https://arc.aiaa.org/doi/epdf/10.2514/6.2020-1238
+    """
+    params = ModelParameters()
+    params.set_member("m", 0.250)
+    params.set_member("a", a)
+    params.set_member("Ixx", 4.27e-4)
+    params.set_member("Iyy", 6.09e-4)
+    params.set_member("Izz", 1.50e-3)
+    params.set_member("r", 0.0635 * np.array([1.0, 1.0, -1.0, -1.0]))
+    params.set_member("s", 0.0635 * np.array([1.0, -1.0, -1.0, 1.0]))
+    k = 0.279
+    c = 0.333
+    params.set_member("b", (c / k) * np.ones(4))
+
+    lbu = Input(np.zeros(4))
+    ubu = Input(params.get_member("m") * GRAVITY / 0.5 * np.ones(4))
     return NonlinearQuadrotorModel(params, lbu, ubu)
