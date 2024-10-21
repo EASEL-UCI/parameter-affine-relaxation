@@ -1,4 +1,5 @@
 from typing import List, Union
+import time
 
 import casadi as cs
 import numpy as np
@@ -189,8 +190,11 @@ class NMPC():
             p += uref.get(k).as_list() + xref.get(k).as_list()
 
         # Solve
+        st = time.perf_counter()
         self._sol = self._solver(
             x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
+        et = time.perf_counter()
+        self._sol["solve_time"] = et - st
         return self._sol
 
     def _init_solver(

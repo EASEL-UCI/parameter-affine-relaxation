@@ -1,4 +1,5 @@
-from typing import List, Union
+from typing import Union
+import time
 
 import casadi as cs
 import numpy as np
@@ -110,8 +111,11 @@ class MHPE():
                     + self._ws.get(k).as_list()
 
         # Solve
+        st = time.perf_counter()
         self._sol = self._solver(
             x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
+        et = time.perf_counter()
+        self._sol["solve_time"] = et - st
         self._update_estimates()
         return self._sol
 
