@@ -489,8 +489,6 @@ class MHPE():
         if self._is_qp():
             return cs.qpsol("qp_solver", self._plugin, nlp_prob, opts)
         else:
-            if self._plugin == "ipopt":
-                opts = {"ipopt.max_iter": 1000}
             return cs.nlpsol("nlp_solver", self._plugin, nlp_prob, opts)
 
     def _measurements_are_full(
