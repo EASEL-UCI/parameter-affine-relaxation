@@ -12,7 +12,9 @@ from par.optimization import NMPC
 order = 8
 nl_model = CrazyflieModel()
 km_model = KoopmanLiftedQuadrotorModel(
-    observables_order=order, parameters=nl_model.parameters)
+    order, nl_model.parameters, nl_model.r, nl_model.s,
+    nl_model.lbu, nl_model.ubu
+)
 
 dt = 0.1
 N = 10

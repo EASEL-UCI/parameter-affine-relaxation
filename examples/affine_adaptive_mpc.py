@@ -16,26 +16,29 @@ param_perturb = ModelParameters(perturb * param_nominal.as_array())
 
 # Get inacurrate and accurate models
 model_inacc = ParameterAffineQuadrotorModel(
-    param_nominal.as_affine(), model_nominal.lbu, model_nominal.ubu)
+    param_nominal.as_affine(),
+    model_nominal.r, model_nominal.s,
+    model_nominal.lbu, model_nominal.ubu
+)
 model_acc = ParameterAffineQuadrotorModel(
-    param_perturb.as_affine(), model_nominal.lbu, model_nominal.ubu)
+    param_perturb.as_affine(),
+    model_nominal.r, model_nominal.s,
+    model_nominal.lbu, model_nominal.ubu
+)
 
 # Init MHPE
 dt = 0.05
 M = 10
-P = 0.1 * np.eye(model_inacc.ntheta)
+P = np.diag(np.hstack((
+    1.0, 1.0 * np.ones(3), 1e-5 * np.ones(3), 1.0 * np.ones(3)
+)))
 S = np.eye(model_inacc.nw)
 mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="proxqp")
 
 # Init MPC
 N = 20
-Q_diag = State()
-Q_diag.set_member("POSITION", 20.0 * np.ones(3))
-Q_diag.set_member("ATTITUDE", 5 * np.ones(4))
-Q_diag.set_member("BODY_FRAME_LINEAR_VELOCITY", np.ones(3))
-Q_diag.set_member("BODY_FRAME_ANGULAR_VELOCITY", np.ones(3))
-Q = np.diag(Q_diag.as_array())
-R = 0.01 * np.eye(model_inacc.nu)
+Q = np.eye(model_inacc.nx)
+R = 0.0 * np.eye(model_inacc.nu)
 Qf = 2.0 * Q
 nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model_inacc)
 
@@ -48,8 +51,8 @@ x.set_member("BODY_FRAME_ANGULAR_VELOCITY", np.random.uniform(-10.0, 10.0, size=
 
 # MHE stuff
 mhpe.reset_measurements(x)
-lb_theta = 0.5 * param_nominal.as_array() * np.ones(model_inacc.ntheta)
-ub_theta = 1.5 * param_nominal.as_array() * np.ones(model_inacc.ntheta)
+lb_theta = 0.5 * param_nominal.as_array() * np.ones(model_nominal.ntheta)
+ub_theta = 1.5 * param_nominal.as_array() * np.ones(model_nominal.ntheta)
 lb_theta_aff_init = ModelParameters(lb_theta).as_affine().as_array()
 ub_theta_aff_init = ModelParameters(ub_theta).as_affine().as_array()
 lb_theta_aff = AffineModelParameters(np.minimum(lb_theta_aff_init, ub_theta_aff_init))

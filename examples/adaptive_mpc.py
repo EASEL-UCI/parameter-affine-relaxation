@@ -13,12 +13,13 @@ model_inacc = CrazyflieModel(0.1 * np.ones(3))
 param_nominal = model_inacc.parameters
 perturb = np.random.uniform(low=0.5, high=1.5, size=model_inacc.ntheta)
 param_perturb = ModelParameters(perturb * param_nominal.as_array())
-model_acc = NonlinearQuadrotorModel(param_perturb, model_inacc.lbu, model_inacc.ubu)
+model_acc = NonlinearQuadrotorModel(
+    param_perturb, model_inacc.r, model_inacc.s, model_inacc.lbu, model_inacc.ubu)
 
 # Init MHPE
 dt = 0.05
 M = 10
-P = 0.1 * np.eye(model_inacc.ntheta)
+P = np.eye(model_inacc.ntheta)
 S = np.eye(model_inacc.nw)
 mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="ipopt")
 
@@ -96,8 +97,6 @@ for i in range(model_acc.ntheta):
     theta_acc = model_acc.parameters.as_array()[i]
     normalized_errors[i] = ( theta.as_array()[i] - theta_acc ) / theta_acc
 
-print(f"\nFinal parameter estimate error: {
-    np.linalg.norm(normalized_errors)
-}")
+print(f"\nFinal parameter estimate error: {np.linalg.norm(normalized_errors)}")
 
 nmpc.plot_trajectory(xs=xs, us=us, dt=dt, N=sim_len)

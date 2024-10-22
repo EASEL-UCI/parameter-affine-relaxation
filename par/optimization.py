@@ -264,7 +264,7 @@ class NMPC():
 
         # Create NLP solver
         nlp_prob = {"f": J, "x": d, "p": p, "g": g}
-        opts = {"ipopt.max_iter": 3000} #{"ipopt.hessian_approximation": "exact"}
+        opts = {"ipopt.max_iter": 1000} #{"ipopt.hessian_approximation": "exact"}
         if not is_verbose:
             opts["ipopt.print_level"] = 0
             opts["print_time"] = 0
@@ -358,11 +358,13 @@ class MHPE():
             "upper_bound", PROCESS_NOISE_CONFIG))
 
         if type(model) == ParameterAffineQuadrotorModel:
+            self._parameter_obj = AffineModelParameters
             self._lb_theta = AffineModelParameters(get_config_values(
                 "lower_bound", model.parameters.config))
             self._ub_theta = AffineModelParameters(get_config_values(
                 "upper_bound", model.parameters.config))
         else:
+            self._parameter_obj = ModelParameters
             self._lb_theta = ModelParameters(get_config_values(
                 "lower_bound", model.parameters.config))
             self._ub_theta = ModelParameters(get_config_values(
@@ -487,14 +489,8 @@ class MHPE():
         if self._is_qp():
             return cs.qpsol("qp_solver", self._plugin, nlp_prob, opts)
         else:
-            '''
             if self._plugin == "ipopt":
-                opts = {"ipopt.max_iter": 3000, "ipopt.hessian_approximation": "exact"}
-                if not is_verbose:
-                    opts["ipopt.print_level"] = 0
-                    opts["print_time"] = 0
-                    opts["ipopt.sb"] = "yes"
-            '''
+                opts = {"ipopt.max_iter": 1000}
             return cs.nlpsol("nlp_solver", self._plugin, nlp_prob, opts)
 
     def _measurements_are_full(
@@ -520,7 +516,7 @@ class MHPE():
         self._ws.append(ProcessNoise())
 
     def _update_estimates(self):
-        self._theta = ModelParameters(
+        self._theta = self._parameter_obj(
             np.array(self._sol["x"][:self._model.ntheta]).flatten())
         ws = []
         for i in range(self._M):

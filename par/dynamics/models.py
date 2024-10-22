@@ -18,6 +18,8 @@ class DynamicsModel():
     def __init__(
         self,
         parameters: Union[ModelParameters, AffineModelParameters],
+        r: Input,
+        s: Input,
         lbu: Input,
         ubu: Input,
         state_config: dict,
@@ -31,6 +33,8 @@ class DynamicsModel():
         self._input_config = input_config
         self._noise_config = noise_config
         self._order = order
+        self._r = r
+        self._s = s
         self._lbu = lbu
         self._ubu = ubu
 
@@ -60,6 +64,14 @@ class DynamicsModel():
     @property
     def ntheta(self) -> int:
         return get_dimensions(self._parameters.config)
+
+    @property
+    def r(self) -> Input:
+        return self._r
+
+    @property
+    def s(self) -> Input:
+        return self._s
 
     @property
     def lbu(self) -> Input:
@@ -151,11 +163,15 @@ class NonlinearQuadrotorModel(DynamicsModel):
     def __init__(
         self,
         parameters: ModelParameters = ModelParameters(),
+        r: Input = Input(),
+        s: Input = Input(),
         lbu: Input = Input(get_config_values("lower_bound", INPUT_CONFIG)),
         ubu: Input = Input(get_config_values("upper_bound", INPUT_CONFIG)),
     ) -> None:
         super().__init__(
-            parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1)
+            parameters, r ,s, lbu, ubu,
+            STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1
+        )
         self._set_model()
 
     def _set_model(self) -> None:
@@ -171,9 +187,9 @@ class NonlinearQuadrotorModel(DynamicsModel):
         Iyy = symbolic("Iyy", PARAMETER_CONFIG)
         Izz = symbolic("Izz", PARAMETER_CONFIG)
         b = symbolic("b", PARAMETER_CONFIG)
-        r = symbolic("r", PARAMETER_CONFIG)
-        s = symbolic("s", PARAMETER_CONFIG)
-        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, r, s, b))
+        #r = symbolic("r", PARAMETER_CONFIG)
+        #s = symbolic("s", PARAMETER_CONFIG)
+        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, b))
 
         # Constants
         g = cs.SX(cs.vertcat(0, 0, -GRAVITY))
@@ -187,9 +203,9 @@ class NonlinearQuadrotorModel(DynamicsModel):
             cs.SX.ones(1, self.nu),
         ))
         B = cs.SX(cs.vertcat(
-            s.T,
-            -r.T,
-            cs.SX(alternating_ones(self.nu)).T * b.T,
+            cs.SX(self._s.as_array()).T,
+            -cs.SX(self._r.as_array()).T,
+            b * cs.SX(alternating_ones(self.nu)).T,
         ))
 
         # Additive process noise
@@ -197,10 +213,10 @@ class NonlinearQuadrotorModel(DynamicsModel):
 
         # Continuous-time dynamics
         xdot = w + cs.SX(cs.vertcat(
-            quat.Q(q)@vB,
-            0.5 * quat.G(q)@wB,
-            quat.Q(q).T@g + (K@u - A@vB) / m - cs.cross(wB, vB),
-            cs.inv(J) @ (B@u - cs.cross(wB, J@wB))
+            quat.Q(q) @ vB,
+            0.5 * quat.G(q) @ wB,
+            quat.Q(q).T @ g + (K @ u - A @ vB) / m - cs.cross(wB, vB),
+            cs.inv(J) @ (B @ u - cs.cross(wB, J @ wB))
         ))
 
         # Define dynamics function
@@ -214,11 +230,15 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
     def __init__(
         self,
         parameters: AffineModelParameters = AffineModelParameters(),
+        r: Input = Input(),
+        s: Input = Input(),
         lbu: Input = Input(get_config_values("lower_bound", INPUT_CONFIG)),
         ubu: Input = Input(get_config_values("upper_bound", INPUT_CONFIG)),
     ) -> None:
         super().__init__(
-            parameters, lbu, ubu, STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1)
+            parameters, r, s, lbu, ubu,
+            STATE_CONFIG, INPUT_CONFIG, PROCESS_NOISE_CONFIG, 1
+        )
         self._set_affine_model()
 
     def _set_affine_model(self) -> None:
@@ -245,18 +265,15 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
             cs.SX.ones(1, self.nu),
         ))
         A = cs.SX(cs.diag(vB))
-        B = cs.SX(cs.vertcat(
-            cs.horzcat( u.T, cs.SX.zeros(1,2*self.nu) ),
-            cs.horzcat(cs.SX.zeros(1,self.nu), -u.T, cs.SX.zeros(1,self.nu) ),
-            cs.horzcat(
-                cs.SX.zeros(1,2*self.nu),
-                cs.SX(alternating_ones(self.nu)).T * u.T
-            ),
-        ))
+        B = cs.SX(cs.diag(cs.vertcat(
+            u.T @ self._s.as_array(),
+            -u.T @ self._r.as_array(),
+            u.T @ alternating_ones(self.nu),
+        )))
         I = cs.SX(cs.diag(cs.vertcat(wB[1]*wB[2], wB[0]*wB[2], wB[0]*wB[1])))
         G = cs.SX(cs.vertcat(
-            cs.SX.zeros(7, 7 + 3 * self.nu),
-            cs.horzcat( K @ u, -A, cs.SX.zeros(3, 3 + 3 * self.nu) ),
+            cs.SX.zeros(7, 10),
+            cs.horzcat( K @ u, -A, cs.SX.zeros(3, 6) ),
             cs.horzcat( cs.SX.zeros(3, 4), B, -I ),
         ))
 
@@ -281,11 +298,13 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         self,
         observables_order: int,
         parameters: ModelParameters = ModelParameters(),
+        r: Input = Input(),
+        s: Input = Input(),
         lbu: Input = get_config_values("lower_bound", INPUT_CONFIG),
         ubu: Input = get_config_values("upper_bound", INPUT_CONFIG),
     ) -> None:
         super().__init__(
-            parameters, lbu, ubu, KOOPMAN_STATE_CONFIG, INPUT_CONFIG,
+            parameters, r, s, lbu, ubu, KOOPMAN_STATE_CONFIG, INPUT_CONFIG,
             KOOPMAN_PROCESS_NOISE_CONFIG, observables_order
         )
         self._set_lifted_model()
@@ -360,9 +379,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         Iyy = symbolic("Iyy", PARAMETER_CONFIG)
         Izz = symbolic("Izz", PARAMETER_CONFIG)
         b = symbolic("b", PARAMETER_CONFIG)
-        r = symbolic("r", PARAMETER_CONFIG)
-        s = symbolic("s", PARAMETER_CONFIG)
-        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, r, s, b))
+        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, b))
 
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
@@ -389,8 +406,8 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
             cs.SX.ones(1, self.nu),
         ))
         B = cs.SX(cs.vertcat(
-            s.T,
-            -r.T,
+            cs.SX(self._s.as_array()).T,
+            -cs.SX(self._r.as_array()).T,
             cs.SX(alternating_ones(self.nu)).T * b.T,
         ))
         u = symbolic("THRUSTS", INPUT_CONFIG)
@@ -422,18 +439,19 @@ def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member("Ixx", 1.436 * 10**-5)
     params.set_member("Iyy", 1.395 * 10**-5)
     params.set_member("Izz", 2.173 * 10**-5)
-    params.set_member("r", 0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
-    params.set_member("s", 0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
     k = 3.1582e-10
     c = 7.9379e-12
-    params.set_member("b", (c / k) * np.ones(4))
+    params.set_member("b", c / k)
+
+    r = Input(0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
+    s = Input(0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
 
     pwm_to_rpm = lambda pwm: 0.2685 * pwm + 4070.3
     pwm_min = 0
     pwm_max = 65535
     lbu = Input(k * pwm_to_rpm(pwm_min)**2 * np.ones(4))
     ubu = Input(k * pwm_to_rpm(pwm_max)**2 * np.ones(4))
-    return NonlinearQuadrotorModel(params, lbu, ubu)
+    return NonlinearQuadrotorModel(params, r, s, lbu, ubu)
 
 
 def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
@@ -446,15 +464,16 @@ def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member("Ixx", 54.7)
     params.set_member("Iyy", 15.6)
     params.set_member("Izz", 57.2)
-    params.set_member("r", 0.14 * np.array([1.0, 1.0, -1.0, -1.0]))
-    params.set_member("s", 0.315 * np.array([1.0, -1.0, -1.0, 1.0]))
     k = 1.6e-5
     c = 1.7e-6
     params.set_member("b", (c / k) * np.ones(4))
 
+    r = Input(0.14 * np.array([1.0, 1.0, -1.0, -1.0]))
+    s = Input(0.315 * np.array([1.0, -1.0, -1.0, 1.0]))
+
     lbu = Input(np.zeros(4))
     ubu = Input(params.get_member("m") * GRAVITY / 0.5 * np.ones(4))
-    return NonlinearQuadrotorModel(params, lbu, ubu)
+    return NonlinearQuadrotorModel(params, r, s, lbu, ubu)
 
 
 def FusionOneQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
@@ -467,12 +486,13 @@ def FusionOneQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member("Ixx", 4.27e-4)
     params.set_member("Iyy", 6.09e-4)
     params.set_member("Izz", 1.50e-3)
-    params.set_member("r", 0.0635 * np.array([1.0, 1.0, -1.0, -1.0]))
-    params.set_member("s", 0.0635 * np.array([1.0, -1.0, -1.0, 1.0]))
     k = 0.279
     c = 0.333
     params.set_member("b", (c / k) * np.ones(4))
 
+    r = 0.0635 * np.array([1.0, 1.0, -1.0, -1.0])
+    s = 0.0635 * np.array([1.0, -1.0, -1.0, 1.0])
+
     lbu = Input(np.zeros(4))
     ubu = Input(params.get_member("m") * GRAVITY / 0.5 * np.ones(4))
-    return NonlinearQuadrotorModel(params, lbu, ubu)
+    return NonlinearQuadrotorModel(params, r, s, lbu, ubu)

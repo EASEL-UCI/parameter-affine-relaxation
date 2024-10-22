@@ -12,9 +12,10 @@ dt = 0.1
 N = 50
 model_nl = CrazyflieModel()
 theta_aff = model_nl.parameters.as_affine()
-model = ParameterAffineQuadrotorModel(theta_aff, model_nl.lbu, model_nl.ubu)
+model = ParameterAffineQuadrotorModel(
+    theta_aff, model_nl.r, model_nl.s, model_nl.lbu, model_nl.ubu)
 Q = np.eye(model.nx)
-R = 0.01 * np.eye(model.nu)
+R = np.eye(model.nu)
 Qf = 2.0 * Q
 nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model, is_verbose=True)
 

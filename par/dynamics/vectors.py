@@ -235,15 +235,16 @@ class ModelParameters(DynamicsVector):
         Ixx = self._members["Ixx"]
         Iyy = self._members["Iyy"]
         Izz = self._members["Izz"]
+
         aff_members = {}
         aff_members["M"] = 1 / m
         aff_members["A"] = self._members["a"] / m
-        aff_members["S"] = self._members["s"] / Ixx
-        aff_members["R"] = self._members["r"] / Iyy
-        aff_members["B"] = self._members["b"] / Izz
-        aff_members["IXX"] = (Izz - Iyy) / Ixx
-        aff_members["IYY"] = (Ixx - Izz) / Iyy
-        aff_members["IZZ"] = (Iyy - Ixx) / Izz
+        aff_members["IXX"] = 1 / Ixx
+        aff_members["IYY"] = 1 / Iyy
+        aff_members["IZZ"] = self._members["b"] / Izz
+        aff_members["IXX_rb"] = (Izz - Iyy) / Ixx
+        aff_members["IYY_rb"] = (Ixx - Izz) / Iyy
+        aff_members["IZZ_rb"] = (Iyy - Ixx) / Izz
         return aff_members
 
 
