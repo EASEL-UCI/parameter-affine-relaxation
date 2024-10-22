@@ -89,8 +89,8 @@ for k in range(sim_len):
     print(f"\ninput {k}: \n{u.as_array()}")
     print(f"\n\n\nstate {k+1}: \n{x.as_array()}")
     print(f"\nparameter estimate {k+1}: \n{theta.as_array()}")
-print(f"\nnominal affine parameter: \n{model_inacc.parameters.as_array()}")
-print(f"\ntrue affine parameter: \n{model_acc.parameters.as_array()}")
+print(f"\nnominal parameter: \n{model_inacc.parameters.as_array()}")
+print(f"\ntrue parameter: \n{model_acc.parameters.as_array()}")
 
 normalized_errors = np.zeros(model_acc.ntheta)
 for i in range(model_acc.ntheta):
