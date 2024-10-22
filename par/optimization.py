@@ -1,5 +1,4 @@
 from typing import List, Union
-import time
 
 import casadi as cs
 import numpy as np
@@ -61,6 +60,7 @@ class NMPC():
         self._theta = self._model.parameters
         self._us_guess = VectorList(self._N * [Input()])
         self._solver = self._init_solver(is_verbose)
+
 
     def get_predicted_states(self) -> VectorList:
         nx = self._model.nx
@@ -192,11 +192,8 @@ class NMPC():
             p += uref.get(k).as_list() + xref.get(k).as_list()
 
         # Solve
-        st = time.perf_counter()
         self._sol = self._solver(
             x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
-        et = time.perf_counter()
-        self._sol["solve_time"] = et - st
         return self._sol
 
     def _init_solver(
@@ -375,6 +372,12 @@ class MHPE():
         self._xs = VectorList(x0)
         self._ws = VectorList()
 
+    def get_solver_stats(self) -> dict:
+        return self._solver.stats()
+
+    def get_full_solution(self) -> dict:
+        return self._sol
+
     def get_parameter_estimate(self) -> Union[ModelParameters, AffineModelParameters]:
         return self._theta
 
@@ -420,11 +423,8 @@ class MHPE():
                     + self._ws.get(k).as_list()
 
         # Solve
-        st = time.perf_counter()
         self._sol = self._solver(
             x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
-        et = time.perf_counter()
-        self._sol["solve_time"] = et - st
         self._update_estimates()
         return self._sol
 
