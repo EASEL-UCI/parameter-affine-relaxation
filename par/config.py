@@ -162,7 +162,7 @@ INPUT_CONFIG = {
 
 
 PROCESS_NOISE_CONFIG = {
-    "BODY_FRAME_LINEAR_VELOCITY": {
+    "INERTIAL_FRAME_LINEAR_VELOCITY": {
         "dimensions": 3,
         "lower_bound": BIG_NEGATIVE * np.ones(3),
         "upper_bound": BIG_POSITIVE * np.ones(3),
