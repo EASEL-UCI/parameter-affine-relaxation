@@ -12,10 +12,10 @@ dt = 0.05
 N = 20
 model = CrazyflieModel()
 Q_diag = State()
-Q_diag.set_member("POSITION", 10.0 * np.ones(3))
-Q_diag.set_member("ATTITUDE", 1.0 * np.ones(4))
-Q_diag.set_member("BODY_FRAME_LINEAR_VELOCITY", np.ones(3))
-Q_diag.set_member("BODY_FRAME_ANGULAR_VELOCITY", 10.0 * np.ones(3))
+Q_diag.set_member('POSITION', 10.0 * np.ones(3))
+Q_diag.set_member('ATTITUDE', 1.0 * np.ones(4))
+Q_diag.set_member('BODY_FRAME_LINEAR_VELOCITY', np.ones(3))
+Q_diag.set_member('BODY_FRAME_ANGULAR_VELOCITY', 10.0 * np.ones(3))
 Q = np.diag(Q_diag.as_array())
 R = 0.001 * np.eye(model.nu)
 Qf = 2.0 * Q
@@ -23,10 +23,10 @@ nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model, is_verbose=False)
 
 
 x = State()
-x.set_member("POSITION", uniform(-10.0, 10.0, size=3))
-x.set_member("ATTITUDE", random_unit_quaternion())
-x.set_member("BODY_FRAME_LINEAR_VELOCITY", uniform(-10.0, 10.0, size=3))
-x.set_member("BODY_FRAME_ANGULAR_VELOCITY", uniform(-10.0, 10.0, size=3))
+x.set_member('POSITION', uniform(-10.0, 10.0, size=3))
+x.set_member('ATTITUDE', random_unit_quaternion())
+x.set_member('BODY_FRAME_LINEAR_VELOCITY', uniform(-10.0, 10.0, size=3))
+x.set_member('BODY_FRAME_ANGULAR_VELOCITY', uniform(-10.0, 10.0, size=3))
 
 w = ProcessNoise()
 
@@ -54,15 +54,15 @@ for k in range(sim_length):
     # Generate Guassian noise on the second order terms
     lin_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
     ang_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
-    w.set_member("BODY_FRAME_LINEAR_ACCELERATION", lin_acc_noise)
-    w.set_member("BODY_FRAME_ANGULAR_ACCELERATION", ang_acc_noise)
+    w.set_member('BODY_FRAME_LINEAR_ACCELERATION', lin_acc_noise)
+    w.set_member('BODY_FRAME_ANGULAR_ACCELERATION', ang_acc_noise)
 
     # Update current state and trajectory history
     x = model.step_sim(dt=dt, x=x, u=u, w=w)
     xs.append(x)
     us.append(u)
 
-    print(f"\ninput {k}: \n{u.as_array()}")
-    print(f"\n\n\nstate {k+1}: \n{x.as_array()}")
+    print(f'\ninput {k}: \n{u.as_array()}')
+    print(f'\n\n\nstate {k+1}: \n{x.as_array()}')
 
 nmpc.plot_trajectory(xs=xs, us=us, dt=dt, N=sim_length)

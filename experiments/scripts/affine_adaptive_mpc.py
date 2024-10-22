@@ -36,7 +36,7 @@ P = 0.1 * np.diag(np.hstack((
     1.0, 1.0 * np.ones(3), 1e-6 * np.ones(3), 1.0 * np.ones(3)
 )))
 S = np.eye(model_inacc.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="osqp")
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin='osqp')
 
 # Init MPC
 N = 20
@@ -47,10 +47,10 @@ nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model_inacc)
 
 # Init state
 x = State()
-x.set_member("POSITION", np.random.uniform(-10.0, 10.0, size=3))
-x.set_member("ATTITUDE", random_unit_quaternion())
-x.set_member("BODY_FRAME_LINEAR_VELOCITY", np.random.uniform(-10.0, 10.0, size=3))
-x.set_member("BODY_FRAME_ANGULAR_VELOCITY", np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('POSITION', np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('ATTITUDE', random_unit_quaternion())
+x.set_member('BODY_FRAME_LINEAR_VELOCITY', np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('BODY_FRAME_ANGULAR_VELOCITY', np.random.uniform(-10.0, 10.0, size=3))
 
 # MHE stuff
 mhpe.reset_measurements(x)
@@ -94,10 +94,10 @@ for k in range(sim_len):
     ang_vel_noise = np.random.uniform(low=-0.5, high=0.5, size=4)
     lin_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
     ang_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
-    w.set_member("INERTIAL_FRAME_LINEAR_VELOCITY", lin_vel_noise)
-    w.set_member("ATTITUDE_RATE", ang_vel_noise)
-    w.set_member("BODY_FRAME_LINEAR_ACCELERATION", lin_acc_noise)
-    w.set_member("BODY_FRAME_ANGULAR_ACCELERATION", ang_acc_noise)
+    w.set_member('INERTIAL_FRAME_LINEAR_VELOCITY', lin_vel_noise)
+    w.set_member('ATTITUDE_RATE', ang_vel_noise)
+    w.set_member('BODY_FRAME_LINEAR_ACCELERATION', lin_acc_noise)
+    w.set_member('BODY_FRAME_ANGULAR_ACCELERATION', ang_acc_noise)
 
     # Update current state and trajectory history
     x = model_acc.step_sim(dt=dt, x=x, u=u, w=w)
@@ -116,11 +116,11 @@ for k in range(sim_len):
         )
         data += [data_k]
 
-    print(f"\ninput {k}: \n{u.as_array()}")
-    print(f"\n\n\nstate {k+1}: \n{x.as_array()}")
-    print(f"\naffine parameter estimate {k+1}: \n{theta.as_array()}")
-print(f"\nnominal affine parameter: \n{model_inacc.parameters.as_array()}")
-print(f"\ntrue affine parameter: \n{model_acc.parameters.as_array()}")
+    print(f'\ninput {k}: \n{u.as_array()}')
+    print(f'\n\n\nstate {k+1}: \n{x.as_array()}')
+    print(f'\naffine parameter estimate {k+1}: \n{theta.as_array()}')
+print(f'\nnominal affine parameter: \n{model_inacc.parameters.as_array()}')
+print(f'\ntrue affine parameter: \n{model_acc.parameters.as_array()}')
 
 print(get_mhpe_non_convergences(data))
 print(get_average_mhpe_solve_time(data))

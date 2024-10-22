@@ -21,7 +21,7 @@ dt = 0.05
 M = 10
 P = np.eye(model_inacc.ntheta)
 S = np.eye(model_inacc.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="ipopt")
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin='ipopt')
 
 # Init MPC
 N = 20
@@ -32,10 +32,10 @@ nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model_inacc)
 
 # Init state
 x = State()
-x.set_member("POSITION", np.random.uniform(-10.0, 10.0, size=3))
-x.set_member("ATTITUDE", random_unit_quaternion())
-x.set_member("BODY_FRAME_LINEAR_VELOCITY", np.random.uniform(-10.0, 10.0, size=3))
-x.set_member("BODY_FRAME_ANGULAR_VELOCITY", np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('POSITION', np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('ATTITUDE', random_unit_quaternion())
+x.set_member('BODY_FRAME_LINEAR_VELOCITY', np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('BODY_FRAME_ANGULAR_VELOCITY', np.random.uniform(-10.0, 10.0, size=3))
 
 # MHE stuff
 mhpe.reset_measurements(x)
@@ -74,8 +74,8 @@ for k in range(sim_len):
     # Generate Guassian noise on the acceleration
     lin_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
     ang_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
-    w.set_member("BODY_FRAME_LINEAR_ACCELERATION", lin_acc_noise)
-    w.set_member("BODY_FRAME_ANGULAR_ACCELERATION", ang_acc_noise)
+    w.set_member('BODY_FRAME_LINEAR_ACCELERATION', lin_acc_noise)
+    w.set_member('BODY_FRAME_ANGULAR_ACCELERATION', ang_acc_noise)
 
     # Update current state and trajectory history
     x = model_acc.step_sim(dt=dt, x=x, u=u, w=w)
@@ -86,17 +86,17 @@ for k in range(sim_len):
     mhpe.solve(x, u)
     theta = mhpe.get_parameter_estimate()
 
-    print(f"\ninput {k}: \n{u.as_array()}")
-    print(f"\n\n\nstate {k+1}: \n{x.as_array()}")
-    print(f"\nparameter estimate {k+1}: \n{theta.as_array()}")
-print(f"\nnominal parameter: \n{model_inacc.parameters.as_array()}")
-print(f"\ntrue parameter: \n{model_acc.parameters.as_array()}")
+    print(f'\ninput {k}: \n{u.as_array()}')
+    print(f'\n\n\nstate {k+1}: \n{x.as_array()}')
+    print(f'\nparameter estimate {k+1}: \n{theta.as_array()}')
+print(f'\nnominal parameter: \n{model_inacc.parameters.as_array()}')
+print(f'\ntrue parameter: \n{model_acc.parameters.as_array()}')
 
 normalized_errors = np.zeros(model_acc.ntheta)
 for i in range(model_acc.ntheta):
     theta_acc = model_acc.parameters.as_array()[i]
     normalized_errors[i] = ( theta.as_array()[i] - theta_acc ) / theta_acc
 
-print(f"\nFinal parameter estimate error: {np.linalg.norm(normalized_errors)}")
+print(f'\nFinal parameter estimate error: {np.linalg.norm(normalized_errors)}')
 
 nmpc.plot_trajectory(xs=xs, us=us, dt=dt, N=sim_len)

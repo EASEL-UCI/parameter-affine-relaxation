@@ -134,7 +134,7 @@ class DynamicsModel():
         theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
         if is_none(self._f):
-            raise Exception("Model has no continuous-time dynamics!")
+            raise Exception('Model has no continuous-time dynamics!')
         if is_none(theta):
             theta = self.parameters.as_array()
         if is_none(w):
@@ -165,8 +165,8 @@ class NonlinearQuadrotorModel(DynamicsModel):
         parameters: ModelParameters = ModelParameters(),
         r: Input = Input(),
         s: Input = Input(),
-        lbu: Input = Input(get_config_values("lower_bound", INPUT_CONFIG)),
-        ubu: Input = Input(get_config_values("upper_bound", INPUT_CONFIG)),
+        lbu: Input = Input(get_config_values('lower_bound', INPUT_CONFIG)),
+        ubu: Input = Input(get_config_values('upper_bound', INPUT_CONFIG)),
     ) -> None:
         super().__init__(
             parameters, r ,s, lbu, ubu,
@@ -175,20 +175,20 @@ class NonlinearQuadrotorModel(DynamicsModel):
         self._set_model()
 
     def _set_model(self) -> None:
-        p = symbolic("POSITION", STATE_CONFIG)
-        q = symbolic("ATTITUDE", STATE_CONFIG)
-        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", STATE_CONFIG)
-        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", STATE_CONFIG)
+        p = symbolic('POSITION', STATE_CONFIG)
+        q = symbolic('ATTITUDE', STATE_CONFIG)
+        vB = symbolic('BODY_FRAME_LINEAR_VELOCITY', STATE_CONFIG)
+        wB = symbolic('BODY_FRAME_ANGULAR_VELOCITY', STATE_CONFIG)
         x = cs.SX(cs.vertcat(p, q, vB, wB))
 
-        m = symbolic("m", PARAMETER_CONFIG)
-        a = symbolic("a", PARAMETER_CONFIG)
-        Ixx = symbolic("Ixx", PARAMETER_CONFIG)
-        Iyy = symbolic("Iyy", PARAMETER_CONFIG)
-        Izz = symbolic("Izz", PARAMETER_CONFIG)
-        b = symbolic("b", PARAMETER_CONFIG)
-        #r = symbolic("r", PARAMETER_CONFIG)
-        #s = symbolic("s", PARAMETER_CONFIG)
+        m = symbolic('m', PARAMETER_CONFIG)
+        a = symbolic('a', PARAMETER_CONFIG)
+        Ixx = symbolic('Ixx', PARAMETER_CONFIG)
+        Iyy = symbolic('Iyy', PARAMETER_CONFIG)
+        Izz = symbolic('Izz', PARAMETER_CONFIG)
+        b = symbolic('b', PARAMETER_CONFIG)
+        #r = symbolic('r', PARAMETER_CONFIG)
+        #s = symbolic('s', PARAMETER_CONFIG)
         theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, b))
 
         # Constants
@@ -197,7 +197,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
         # Control input terms
-        u = symbolic("THRUSTS", INPUT_CONFIG)
+        u = symbolic('THRUSTS', INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             cs.SX.ones(1, self.nu),
@@ -209,7 +209,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         ))
 
         # Additive process noise
-        w = cs.SX.sym("w", self.nw)
+        w = cs.SX.sym('w', self.nw)
 
         # Continuous-time dynamics
         xdot = w + cs.SX(cs.vertcat(
@@ -221,7 +221,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
 
         # Define dynamics function
         self._f = cs.Function(
-            "f_NonlinearQuadrotorModel",
+            'f_NonlinearQuadrotorModel',
             [x, u, w, theta], [xdot]
         )
 
@@ -232,8 +232,8 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         parameters: AffineModelParameters = AffineModelParameters(),
         r: Input = Input(),
         s: Input = Input(),
-        lbu: Input = Input(get_config_values("lower_bound", INPUT_CONFIG)),
-        ubu: Input = Input(get_config_values("upper_bound", INPUT_CONFIG)),
+        lbu: Input = Input(get_config_values('lower_bound', INPUT_CONFIG)),
+        ubu: Input = Input(get_config_values('upper_bound', INPUT_CONFIG)),
     ) -> None:
         super().__init__(
             parameters, r, s, lbu, ubu,
@@ -242,10 +242,10 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         self._set_affine_model()
 
     def _set_affine_model(self) -> None:
-        p = symbolic("POSITION", STATE_CONFIG)
-        q = symbolic("ATTITUDE", STATE_CONFIG)
-        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", STATE_CONFIG)
-        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", STATE_CONFIG)
+        p = symbolic('POSITION', STATE_CONFIG)
+        q = symbolic('ATTITUDE', STATE_CONFIG)
+        vB = symbolic('BODY_FRAME_LINEAR_VELOCITY', STATE_CONFIG)
+        wB = symbolic('BODY_FRAME_ANGULAR_VELOCITY', STATE_CONFIG)
         x = cs.SX(cs.vertcat(p, q, vB, wB))
 
         g = cs.vertcat(0, 0, -GRAVITY)
@@ -259,7 +259,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         ))
 
         # Parameter-coupled dynamics
-        u = symbolic("THRUSTS", INPUT_CONFIG)
+        u = symbolic('THRUSTS', INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             cs.SX.ones(1, self.nu),
@@ -278,17 +278,17 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         ))
 
         # Additive process noise
-        w = cs.SX.sym("w", self.nw)
+        w = cs.SX.sym('w', self.nw)
 
         # Affine parameters
-        theta = cs.SX.sym("relaxed_parameters", self.ntheta)
+        theta = cs.SX.sym('relaxed_parameters', self.ntheta)
 
         # Continuous-time dynamics
         xdot = w + F + G @ theta
 
         # Define dynamics function
         self._f = cs.Function(
-            "f_ParameterAffineQuadrotorModel",
+            'f_ParameterAffineQuadrotorModel',
             [x, u, w, theta], [xdot]
         )
 
@@ -300,8 +300,8 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         parameters: ModelParameters = ModelParameters(),
         r: Input = Input(),
         s: Input = Input(),
-        lbu: Input = get_config_values("lower_bound", INPUT_CONFIG),
-        ubu: Input = get_config_values("upper_bound", INPUT_CONFIG),
+        lbu: Input = get_config_values('lower_bound', INPUT_CONFIG),
+        ubu: Input = get_config_values('upper_bound', INPUT_CONFIG),
     ) -> None:
         super().__init__(
             parameters, r, s, lbu, ubu, KOOPMAN_STATE_CONFIG, INPUT_CONFIG,
@@ -337,7 +337,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
         if is_none(self._f):
-            raise Exception("Model has no continuous-time dynamics!")
+            raise Exception('Model has no continuous-time dynamics!')
         if is_none(theta):
             theta = self.parameters.as_array()
         if is_none(w):
@@ -361,24 +361,24 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         return x + dt/6 * (k1 +2*k2 +2*k3 +k4)
 
     def _set_lifted_model(self) -> None:
-        pB_0 = symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG)
-        vB_0 = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG)
-        gB_0 = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG)
-        wB_0 = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG)
+        pB_0 = symbolic('BODY_FRAME_POSITION', KOOPMAN_STATE_CONFIG)
+        vB_0 = symbolic('BODY_FRAME_LINEAR_VELOCITY', KOOPMAN_STATE_CONFIG)
+        gB_0 = symbolic('BODY_FRAME_GRAVITY', KOOPMAN_STATE_CONFIG)
+        wB_0 = symbolic('BODY_FRAME_ANGULAR_VELOCITY', KOOPMAN_STATE_CONFIG)
         z0 = cs.vertcat(pB_0, vB_0, gB_0, wB_0)
 
-        pB = symbolic("BODY_FRAME_POSITION", KOOPMAN_STATE_CONFIG, self._order)
-        vB = symbolic("BODY_FRAME_LINEAR_VELOCITY", KOOPMAN_STATE_CONFIG, self._order)
-        gB = symbolic("BODY_FRAME_GRAVITY", KOOPMAN_STATE_CONFIG, self._order)
-        wB = symbolic("BODY_FRAME_ANGULAR_VELOCITY", KOOPMAN_STATE_CONFIG, self._order)
+        pB = symbolic('BODY_FRAME_POSITION', KOOPMAN_STATE_CONFIG, self._order)
+        vB = symbolic('BODY_FRAME_LINEAR_VELOCITY', KOOPMAN_STATE_CONFIG, self._order)
+        gB = symbolic('BODY_FRAME_GRAVITY', KOOPMAN_STATE_CONFIG, self._order)
+        wB = symbolic('BODY_FRAME_ANGULAR_VELOCITY', KOOPMAN_STATE_CONFIG, self._order)
         z = cs.vertcat(pB, vB, gB, wB)
 
-        m = symbolic("m", PARAMETER_CONFIG)
-        a = symbolic("a", PARAMETER_CONFIG)
-        Ixx = symbolic("Ixx", PARAMETER_CONFIG)
-        Iyy = symbolic("Iyy", PARAMETER_CONFIG)
-        Izz = symbolic("Izz", PARAMETER_CONFIG)
-        b = symbolic("b", PARAMETER_CONFIG)
+        m = symbolic('m', PARAMETER_CONFIG)
+        a = symbolic('a', PARAMETER_CONFIG)
+        Ixx = symbolic('Ixx', PARAMETER_CONFIG)
+        Iyy = symbolic('Iyy', PARAMETER_CONFIG)
+        Izz = symbolic('Izz', PARAMETER_CONFIG)
+        b = symbolic('b', PARAMETER_CONFIG)
         theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, b))
 
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
@@ -410,10 +410,10 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
             -cs.SX(self._r.as_array()).T,
             cs.SX(alternating_ones(self.nu)).T * b.T,
         ))
-        u = symbolic("THRUSTS", INPUT_CONFIG)
+        u = symbolic('THRUSTS', INPUT_CONFIG)
 
         # Process noise
-        w = cs.SX.sym("w", self.nw)
+        w = cs.SX.sym('w', self.nw)
 
         # Continuous-time dynamics
         B_ode = cs.SX(
@@ -423,25 +423,25 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
 
         # Define dynamics function
         self._f = cs.Function(
-            "f_KoopmanLiftedQuadrotorModel",
+            'f_KoopmanLiftedQuadrotorModel',
             [z0, z, u, w, theta], [zdot]
         )
 
 
 #TODO: add more models
 def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
-    """
+    '''
     Crazyflie system identification: https://arxiv.org/pdf/1608.05786
-    """
+    '''
     params = ModelParameters()
-    params.set_member("m", 0.027)
-    params.set_member("a", a)
-    params.set_member("Ixx", 1.436 * 10**-5)
-    params.set_member("Iyy", 1.395 * 10**-5)
-    params.set_member("Izz", 2.173 * 10**-5)
+    params.set_member('m', 0.027)
+    params.set_member('a', a)
+    params.set_member('Ixx', 1.436 * 10**-5)
+    params.set_member('Iyy', 1.395 * 10**-5)
+    params.set_member('Izz', 2.173 * 10**-5)
     k = 3.1582e-10
     c = 7.9379e-12
-    params.set_member("b", c / k)
+    params.set_member('b', c / k)
 
     r = Input(0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
     s = Input(0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
@@ -455,44 +455,44 @@ def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
 
 
 def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
-    """
+    '''
     Asymmetric quadrotor identification: https://ieeexplore.ieee.org/document/9476871
-    """
+    '''
     params = ModelParameters()
-    params.set_member("m", 2.5)
-    params.set_member("a", a)
-    params.set_member("Ixx", 54.7)
-    params.set_member("Iyy", 15.6)
-    params.set_member("Izz", 57.2)
+    params.set_member('m', 2.5)
+    params.set_member('a', a)
+    params.set_member('Ixx', 54.7)
+    params.set_member('Iyy', 15.6)
+    params.set_member('Izz', 57.2)
     k = 1.6e-5
     c = 1.7e-6
-    params.set_member("b", (c / k) * np.ones(4))
+    params.set_member('b', (c / k) * np.ones(4))
 
     r = Input(0.14 * np.array([1.0, 1.0, -1.0, -1.0]))
     s = Input(0.315 * np.array([1.0, -1.0, -1.0, 1.0]))
 
     lbu = Input(np.zeros(4))
-    ubu = Input(params.get_member("m") * GRAVITY / 0.5 * np.ones(4))
+    ubu = Input(params.get_member('m') * GRAVITY / 0.5 * np.ones(4))
     return NonlinearQuadrotorModel(params, r, s, lbu, ubu)
 
 
 def FusionOneQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
-    """
+    '''
     Fusion 1 quadrotor identification: https://arc.aiaa.org/doi/epdf/10.2514/6.2020-1238
-    """
+    '''
     params = ModelParameters()
-    params.set_member("m", 0.250)
-    params.set_member("a", a)
-    params.set_member("Ixx", 4.27e-4)
-    params.set_member("Iyy", 6.09e-4)
-    params.set_member("Izz", 1.50e-3)
+    params.set_member('m', 0.250)
+    params.set_member('a', a)
+    params.set_member('Ixx', 4.27e-4)
+    params.set_member('Iyy', 6.09e-4)
+    params.set_member('Izz', 1.50e-3)
     k = 0.279
     c = 0.333
-    params.set_member("b", (c / k) * np.ones(4))
+    params.set_member('b', (c / k) * np.ones(4))
 
     r = 0.0635 * np.array([1.0, 1.0, -1.0, -1.0])
     s = 0.0635 * np.array([1.0, -1.0, -1.0, 1.0])
 
     lbu = Input(np.zeros(4))
-    ubu = Input(params.get_member("m") * GRAVITY / 0.5 * np.ones(4))
+    ubu = Input(params.get_member('m') * GRAVITY / 0.5 * np.ones(4))
     return NonlinearQuadrotorModel(params, r, s, lbu, ubu)

@@ -43,21 +43,21 @@ class NMPC():
             self._is_koopman = True
             self._lbx = KoopmanLiftedState(
                 get_config_values(
-                    "lower_bound", model.state_config, copies=model.order),
+                    'lower_bound', model.state_config, copies=model.order),
                 self._model.order
             )
             self._ubx = KoopmanLiftedState(
                 get_config_values(
-                    "upper_bound", KOOPMAN_STATE_CONFIG, copies=model.order),
+                    'upper_bound', KOOPMAN_STATE_CONFIG, copies=model.order),
                 self._model.order
             )
         else:
             self._is_koopman = False
-            self._lbx = State(get_config_values("lower_bound", STATE_CONFIG))
-            self._ubx = State(get_config_values("upper_bound", STATE_CONFIG))
+            self._lbx = State(get_config_values('lower_bound', STATE_CONFIG))
+            self._ubx = State(get_config_values('upper_bound', STATE_CONFIG))
 
-        self._lbu = Input(get_config_values("lower_bound", INPUT_CONFIG))
-        self._ubu = Input(get_config_values("upper_bound", INPUT_CONFIG))
+        self._lbu = Input(get_config_values('lower_bound', INPUT_CONFIG))
+        self._ubu = Input(get_config_values('upper_bound', INPUT_CONFIG))
         self._theta = self._model.parameters
         self._us_guess = VectorList(self._N * [Input()])
         self._solver = self._init_solver(is_verbose)
@@ -70,12 +70,12 @@ class NMPC():
         for k in range(1, self._N + 1):
             if self._is_koopman:
                 xs.append(KoopmanLiftedState(np.array(
-                    self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten(),
+                    self._sol['x'][k*(nx+nu) : k*(nx+nu) + nx]).flatten(),
                     self._model.order
                 ))
             else:
                 xs.append(State(np.array(
-                    self._sol["x"][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
+                    self._sol['x'][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
         return xs
 
     def get_predicted_inputs(self) -> VectorList:
@@ -84,7 +84,7 @@ class NMPC():
         us = VectorList()
         for k in range(self._N):
             us.append(Input(np.array(
-                self._sol["x"][(k+1)*nx+k*nu : (k+1)*nx+(k+1)*nu]).flatten()))
+                self._sol['x'][(k+1)*nx+k*nu : (k+1)*nx+(k+1)*nu]).flatten()))
         return us
 
     def plot_trajectory(
@@ -95,10 +95,10 @@ class NMPC():
         N: float = None,
         order: int = None,
     ) -> None:
-        """
+        '''
         Display the series of control inputs
         and trajectory over prediction horizon.
-        """
+        '''
         if is_none(dt): dt = self._dt
         if is_none(N): N = self._N
 
@@ -110,10 +110,10 @@ class NMPC():
             us = self.get_predicted_inputs().as_array()
         else:
             us = us.as_array()
-        legend = ["u1", "u2", "u3", "u4"]
+        legend = ['u1', 'u2', 'u3', 'u4']
         self._plot_trajectory(
             axs[0], t, us, interp_N, legend,
-            "squared motor\nang vel (rad/s)^2",
+            'squared motor\nang vel (rad/s)^2',
         )
 
         if not self._is_koopman:
@@ -123,29 +123,29 @@ class NMPC():
                 xs = xs.as_array()
             if len(xs) > len(us):
                 xs = xs[:len(us), :]
-            legend = ["x", "y", "z"]
+            legend = ['x', 'y', 'z']
             self._plot_trajectory(
                 axs[1], t, xs[:,:3], interp_N, legend,
-                "pos (m)"
+                'pos (m)'
             )
-            legend = ["qw", "qx", "qy", "qz"]
+            legend = ['qw', 'qx', 'qy', 'qz']
             self._plot_trajectory(
                 axs[2], t, xs[:, 3:7], interp_N, legend,
-                "att (quat)"
+                'att (quat)'
             )
-            legend = ["vx", "vy", "vz"]
+            legend = ['vx', 'vy', 'vz']
             self._plot_trajectory(
                 axs[3], t, xs[:, 7:10], interp_N, legend,
-                "body frame\nvel (m/s)"
+                'body frame\nvel (m/s)'
             )
-            legend = ["wx", "wy", "wz"]
+            legend = ['wx', 'wy', 'wz']
             self._plot_trajectory(
                 axs[4], t, xs[:, 10:13], interp_N, legend,
-                "body frame\nang vel (rad/s)",
+                'body frame\nang vel (rad/s)',
             )
 
         for ax in axs.flat:
-            ax.set(xlabel="time (s)")
+            ax.set(xlabel='time (s)')
             ax.label_outer()
         plt.show()
 
@@ -202,12 +202,12 @@ class NMPC():
         is_verbose: bool
     ) -> dict:
         # Decision variable for state
-        x0 = cs.SX.sym("x0", self._model.nx)
+        x0 = cs.SX.sym('x0', self._model.nx)
         # Constant for model parameters
-        theta = cs.SX.sym("theta", self._model.ntheta)
+        theta = cs.SX.sym('theta', self._model.ntheta)
         # Constant for koopman initialization
         if self._is_koopman:
-            z0 = cs.SX.sym("z0", get_dimensions(KOOPMAN_STATE_CONFIG))
+            z0 = cs.SX.sym('z0', get_dimensions(KOOPMAN_STATE_CONFIG))
         else:
             z0 = cs.SX()
 
@@ -223,7 +223,7 @@ class NMPC():
         xk = x0
         for k in range(self._N):
             # New decision variable for control
-            uk = cs.SX.sym("u" + str(k), self._model.nu)
+            uk = cs.SX.sym('u' + str(k), self._model.nu)
             d += [uk]
 
             # Get the state at the end of the time step
@@ -233,12 +233,12 @@ class NMPC():
                 xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
 
             # New NLP variable for state at the end of the interval
-            xk = cs.SX.sym("x" + str(k+1), self._model.nx)
+            xk = cs.SX.sym('x' + str(k+1), self._model.nx)
             d += [xk]
 
             # New constants for reference tracking
-            uref_k = cs.SX.sym("uref" + str(k), self._model.nu)
-            xref_k = cs.SX.sym("xref" + str(k+1), self._model.nx)
+            uref_k = cs.SX.sym('uref' + str(k), self._model.nu)
+            xref_k = cs.SX.sym('xref' + str(k+1), self._model.nx)
             p += [uref_k, xref_k]
 
             # Add costs
@@ -261,16 +261,16 @@ class NMPC():
         self._ubg = ubg
 
         # Create NLP solver
-        nlp_prob = {"f": J, "x": d, "p": p, "g": g}
-        opts = {"ipopt.max_iter": 1000} #{"ipopt.hessian_approximation": "exact"}
+        nlp_prob = {'f': J, 'x': d, 'p': p, 'g': g}
+        opts = {'ipopt.max_iter': 1000} #{'ipopt.hessian_approximation': 'exact'}
         if not is_verbose:
-            opts["ipopt.print_level"] = 0
-            opts["print_time"] = 0
-            opts["ipopt.sb"] = "yes"
-            #opts["ipopt.hessian_approximation"] = "exact"
-        #opts = {"error_on_fail": False}
-        #return cs.qpsol("nlp_solver", "osqp", nlp_prob, opts)
-        return cs.nlpsol("nlp_solver", "ipopt", nlp_prob, opts)
+            opts['ipopt.print_level'] = 0
+            opts['print_time'] = 0
+            opts['ipopt.sb'] = 'yes'
+            #opts['ipopt.hessian_approximation'] = 'exact'
+        #opts = {'error_on_fail': False}
+        #return cs.qpsol('nlp_solver', 'osqp', nlp_prob, opts)
+        return cs.nlpsol('nlp_solver', 'ipopt', nlp_prob, opts)
 
     def _get_stage_cost(
         self,
@@ -329,7 +329,7 @@ class MHPE():
         S: np.ndarray,
         model: DynamicsModel,
         x0: State = State(),
-        plugin: str = "ipopt",
+        plugin: str = 'ipopt',
     ) -> None:
         assert type(model) == NonlinearQuadrotorModel \
             or type(model) == ParameterAffineQuadrotorModel
@@ -352,22 +352,22 @@ class MHPE():
         self._lba = BIG_NEGATIVE * np.ones(M * model.nx)
         self._uba = BIG_POSITIVE * np.ones(M * model.nx)
         self._lbw = ProcessNoise(get_config_values(
-            "lower_bound", PROCESS_NOISE_CONFIG))
+            'lower_bound', PROCESS_NOISE_CONFIG))
         self._ubw = ProcessNoise(get_config_values(
-            "upper_bound", PROCESS_NOISE_CONFIG))
+            'upper_bound', PROCESS_NOISE_CONFIG))
 
         if type(model) == ParameterAffineQuadrotorModel:
             self._parameter_obj = AffineModelParameters
             self._lb_theta = AffineModelParameters(get_config_values(
-                "lower_bound", model.parameters.config))
+                'lower_bound', model.parameters.config))
             self._ub_theta = AffineModelParameters(get_config_values(
-                "upper_bound", model.parameters.config))
+                'upper_bound', model.parameters.config))
         else:
             self._parameter_obj = ModelParameters
             self._lb_theta = ModelParameters(get_config_values(
-                "lower_bound", model.parameters.config))
+                'lower_bound', model.parameters.config))
             self._ub_theta = ModelParameters(get_config_values(
-                "upper_bound", model.parameters.config))
+                'upper_bound', model.parameters.config))
         self._solver = self._init_solver()
 
     def reset_measurements(self, x0: State) -> None:
@@ -403,7 +403,7 @@ class MHPE():
 
         # Skip this solver call if measurement history isn't full length
         if not self._measurements_are_full():
-            print("\nInput more measurements before solving!\n")
+            print('\nInput more measurements before solving!\n')
             return self._sol
 
         # Get default inequality constraints
@@ -437,11 +437,11 @@ class MHPE():
 
     def _init_solver(self) -> dict:
         # Constant for state
-        x0 = cs.SX.sym("x0", self._model.nx)
+        x0 = cs.SX.sym('x0', self._model.nx)
         # Decision variable for model parameters
-        theta = cs.SX.sym("theta", self._model.ntheta)
+        theta = cs.SX.sym('theta', self._model.ntheta)
         # Constant for parameter reference
-        theta_ref = cs.SX.sym("theta_ref", self._model.ntheta)
+        theta_ref = cs.SX.sym('theta_ref', self._model.ntheta)
 
         # Arguments for formulating NLP
         p = [x0, theta_ref]
@@ -455,22 +455,22 @@ class MHPE():
         xk = x0
         for k in range(self._M):
             # New constant for control input
-            uk = cs.SX.sym("u" + str(k), self._model.nu)
+            uk = cs.SX.sym('u' + str(k), self._model.nu)
             p += [uk]
 
             # New decision variable for process noise
-            wk = cs.SX.sym("w" + str(k), self._model.nw)
+            wk = cs.SX.sym('w' + str(k), self._model.nw)
             d += [wk]
 
             # Get the state at the end of the time step
             xf = self._model.F(dt=self._dt, x=xk, u=uk, w=wk, theta=theta)
 
             # New constant for the state at the end of the interval
-            xk = cs.SX.sym("x" + str(k+1), self._model.nx)
+            xk = cs.SX.sym('x' + str(k+1), self._model.nx)
             p += [xk]
 
             # New constant for disturbance reference tracking
-            wref_k = cs.SX.sym("wref" + str(k), self._model.nw)
+            wref_k = cs.SX.sym('wref' + str(k), self._model.nw)
             p += [wref_k]
 
             # Add running cost
@@ -492,14 +492,14 @@ class MHPE():
 
         # Create NLP solver
         opts = self._set_solver_opts()
-        nlp_prob = {"f": J, "x": d, "p": p, "g": g}
+        nlp_prob = {'f': J, 'x': d, 'p': p, 'g': g}
         if self._is_qp():
-            return cs.qpsol("qp_solver", self._plugin, nlp_prob, opts)
+            return cs.qpsol('qp_solver', self._plugin, nlp_prob, opts)
         else:
-            return cs.nlpsol("nlp_solver", self._plugin, nlp_prob, opts)
+            return cs.nlpsol('nlp_solver', self._plugin, nlp_prob, opts)
 
     def _set_solver_opts(self) -> dict:
-        opts = {"error_on_fail": False}
+        opts = {'error_on_fail': False}
         if self._plugin == 'osqp':
             opts['osqp.check_termination'] = 1000
         elif self._plugin == 'ipopt':
@@ -539,10 +539,10 @@ class MHPE():
 
     def _update_estimates(self):
         self._theta = self._parameter_obj(
-            np.array(self._sol["x"][:self._model.ntheta]).flatten())
+            np.array(self._sol['x'][:self._model.ntheta]).flatten())
         ws = []
         for i in range(self._M):
-            wk = self._sol["x"][self._model.ntheta + i*self._model.nw : \
+            wk = self._sol['x'][self._model.ntheta + i*self._model.nw : \
                                 self._model.ntheta + (i+1)*self._model.nw]
             ws += [ProcessNoise(np.array(wk).flatten())]
         self._ws = VectorList(ws)

@@ -24,7 +24,7 @@ class DynamicsVector():
         self._config = config
         self._members = {}
         if is_none(array):
-            array = get_config_values("default_value", config, copies=copies)
+            array = get_config_values('default_value', config, copies=copies)
         self.set(array)
 
     @property
@@ -42,7 +42,7 @@ class DynamicsVector():
         assert len(vector) == self._n * self._dims
         i = 0
         for id, subconfig in self._config.items():
-            dims = self._n * subconfig["dimensions"]
+            dims = self._n * subconfig['dimensions']
             self._members[id] = vector[i : i + dims]
             i += dims
 
@@ -55,9 +55,9 @@ class DynamicsVector():
         member: Union[float, np.ndarray],
     ) -> None:
         if type(member) == float or type(member) == np.float64:
-            assert self._config[id]["dimensions"] == self._n
+            assert self._config[id]['dimensions'] == self._n
         else:
-            assert len(member) == self._n * self._config[id]["dimensions"]
+            assert len(member) == self._n * self._config[id]['dimensions']
         self._members[id] = member
 
 
@@ -109,7 +109,7 @@ class VectorList():
             map(self._assert_type, vectors)
             self._list += vectors
         else:
-            raise TypeError("Attempted to append invalid type!")
+            raise TypeError('Attempted to append invalid type!')
 
     def _assert_type(
         self,
@@ -156,7 +156,7 @@ class KoopmanLiftedState(DynamicsVector):
         super().__init__(KOOPMAN_STATE_CONFIG, z, order)
 
     def get_zero_order_array(self) -> np.ndarray:
-        vector = [member[: self._config[id]["dimensions"]] \
+        vector = [member[: self._config[id]['dimensions']] \
                     for id, member in self._members.items()]
         return np.hstack(vector)
 
@@ -179,33 +179,33 @@ class State(DynamicsVector):
         return KoopmanLiftedState(np.hstack(z).flatten(), order)
 
     def get_zero_order_koopman_members(self) -> dict:
-        rot = quat.Q(self._members["ATTITUDE"])
+        rot = quat.Q(self._members['ATTITUDE'])
         z0_members = {}
-        z0_members["BODY_FRAME_POSITION"] = rot.T @ self._members["POSITION"]
-        z0_members["BODY_FRAME_LINEAR_VELOCITY"] = \
-            self._members["BODY_FRAME_LINEAR_VELOCITY"]
-        z0_members["BODY_FRAME_GRAVITY"] = rot.T @ (-GRAVITY * math.e3())
-        z0_members["BODY_FRAME_ANGULAR_VELOCITY"] = \
-            self._members["BODY_FRAME_ANGULAR_VELOCITY"]
+        z0_members['BODY_FRAME_POSITION'] = rot.T @ self._members['POSITION']
+        z0_members['BODY_FRAME_LINEAR_VELOCITY'] = \
+            self._members['BODY_FRAME_LINEAR_VELOCITY']
+        z0_members['BODY_FRAME_GRAVITY'] = rot.T @ (-GRAVITY * math.e3())
+        z0_members['BODY_FRAME_ANGULAR_VELOCITY'] = \
+            self._members['BODY_FRAME_ANGULAR_VELOCITY']
         return z0_members
 
     def get_lifted_koopman_members(self, J: np.ndarray, order: int) -> dict:
         z0_members = self.get_zero_order_koopman_members()
         ws = attitude.get_ws(
-            z0_members["BODY_FRAME_ANGULAR_VELOCITY"], J, order)
-        ps = position.get_ps(z0_members["BODY_FRAME_POSITION"], ws)
-        vs = velocity.get_vs(z0_members["BODY_FRAME_LINEAR_VELOCITY"], ws)
-        gs = gravity.get_gs(z0_members["BODY_FRAME_GRAVITY"], ws)
+            z0_members['BODY_FRAME_ANGULAR_VELOCITY'], J, order)
+        ps = position.get_ps(z0_members['BODY_FRAME_POSITION'], ws)
+        vs = velocity.get_vs(z0_members['BODY_FRAME_LINEAR_VELOCITY'], ws)
+        gs = gravity.get_gs(z0_members['BODY_FRAME_GRAVITY'], ws)
 
         ps_vec = convert_casadi_to_numpy_array(cs.vertcat(*ps))
         vs_vec = convert_casadi_to_numpy_array(cs.vertcat(*vs))
         gs_vec = convert_casadi_to_numpy_array(cs.vertcat(*gs))
         ws_vec = convert_casadi_to_numpy_array(cs.vertcat(*ws))
         z_members = {}
-        z_members["BODY_FRAME_POSITION"] = ps_vec
-        z_members["BODY_FRAME_LINEAR_VELOCITY"] = vs_vec
-        z_members["BODY_FRAME_GRAVITY"] = gs_vec
-        z_members["BODY_FRAME_ANGULAR_VELOCITY"] = ws_vec
+        z_members['BODY_FRAME_POSITION'] = ps_vec
+        z_members['BODY_FRAME_LINEAR_VELOCITY'] = vs_vec
+        z_members['BODY_FRAME_GRAVITY'] = gs_vec
+        z_members['BODY_FRAME_ANGULAR_VELOCITY'] = ws_vec
         return z_members
 
 
@@ -231,20 +231,20 @@ class ModelParameters(DynamicsVector):
         return AffineModelParameters(np.hstack(theta_aff).flatten())
 
     def get_affine_members(self) -> dict:
-        m = self._members["m"]
-        Ixx = self._members["Ixx"]
-        Iyy = self._members["Iyy"]
-        Izz = self._members["Izz"]
+        m = self._members['m']
+        Ixx = self._members['Ixx']
+        Iyy = self._members['Iyy']
+        Izz = self._members['Izz']
 
         aff_members = {}
-        aff_members["M"] = 1 / m
-        aff_members["A"] = self._members["a"] / m
-        aff_members["IXX"] = 1 / Ixx
-        aff_members["IYY"] = 1 / Iyy
-        aff_members["IZZ"] = self._members["b"] / Izz
-        aff_members["IXX_rb"] = (Izz - Iyy) / Ixx
-        aff_members["IYY_rb"] = (Ixx - Izz) / Iyy
-        aff_members["IZZ_rb"] = (Iyy - Ixx) / Izz
+        aff_members['M'] = 1 / m
+        aff_members['A'] = self._members['a'] / m
+        aff_members['IXX'] = 1 / Ixx
+        aff_members['IYY'] = 1 / Iyy
+        aff_members['IZZ'] = self._members['b'] / Izz
+        aff_members['IXX_rb'] = (Izz - Iyy) / Ixx
+        aff_members['IYY_rb'] = (Ixx - Izz) / Iyy
+        aff_members['IZZ_rb'] = (Iyy - Ixx) / Izz
         return aff_members
 
 
