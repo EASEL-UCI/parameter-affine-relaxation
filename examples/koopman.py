@@ -6,7 +6,7 @@ from par.dynamics.vectors import State, Input, KoopmanLiftedState, \
                                     VectorList
 from par.dynamics.models import CrazyflieModel, KoopmanLiftedQuadrotorModel
 from par.utils.math import random_unit_quaternion
-from par.mpc import NMPC
+from par.optimization import NMPC
 
 
 order = 8

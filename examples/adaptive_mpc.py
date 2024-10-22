@@ -5,8 +5,7 @@ from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
                                     VectorList
 from par.dynamics.models import CrazyflieModel, NonlinearQuadrotorModel
 from par.utils.math import random_unit_quaternion
-from par.mpc import NMPC
-from par.mhe import MHPE
+from par.optimization import NMPC, MHPE
 
 
 # Perturb model parameters

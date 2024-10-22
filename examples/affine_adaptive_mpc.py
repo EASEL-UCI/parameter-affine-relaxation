@@ -3,15 +3,13 @@
 import numpy as np
 from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
                                     AffineModelParameters, VectorList
-from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel, \
-                                AsymmetricQuadrotorModel
+from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel
 from par.utils.math import random_unit_quaternion
-from par.mpc import NMPC
-from par.mhe import MHPE
+from par.optimization import NMPC, MHPE
 
 
 # Perturb model parameters
-model_nominal = AsymmetricQuadrotorModel(0.1 * np.ones(3)) #CrazyflieModel(0.1 * np.ones(3))
+model_nominal = CrazyflieModel(0.1 * np.ones(3))
 param_nominal = model_nominal.parameters
 perturb = np.random.uniform(low=0.5, high=1.5, size=model_nominal.ntheta)
 param_perturb = ModelParameters(perturb * param_nominal.as_array())

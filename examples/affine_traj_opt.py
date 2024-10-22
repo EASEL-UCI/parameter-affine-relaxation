@@ -5,7 +5,7 @@ from numpy.random import uniform
 from par.dynamics.vectors import State, Input, VectorList
 from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel
 from par.utils.math import random_unit_quaternion
-from par.mpc import NMPC
+from par.optimization import NMPC
 
 
 dt = 0.1
