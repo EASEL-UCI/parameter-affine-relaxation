@@ -32,11 +32,11 @@ model_acc = ParameterAffineQuadrotorModel(
 # Init MHPE
 dt = 0.05
 M = 10
-P = np.diag(np.hstack((
-    1.0, 1.0 * np.ones(3), 1e-5 * np.ones(3), 1.0 * np.ones(3)
+P = 0.1 * np.diag(np.hstack((
+    1.0, 1.0 * np.ones(3), 1e-6 * np.ones(3), 1.0 * np.ones(3)
 )))
 S = np.eye(model_inacc.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="proxqp")
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="osqp")
 
 # Init MPC
 N = 20
@@ -90,8 +90,12 @@ for k in range(sim_len):
     u = us_guess.get(0)
 
     # Generate Guassian noise on the acceleration
+    lin_vel_noise = np.random.uniform(low=-0.5, high=0.5, size=3)
+    ang_vel_noise = np.random.uniform(low=-0.5, high=0.5, size=4)
     lin_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
     ang_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
+    w.set_member("INERTIAL_FRAME_LINEAR_VELOCITY", lin_vel_noise)
+    w.set_member("ATTITUDE_RATE", ang_vel_noise)
     w.set_member("BODY_FRAME_LINEAR_ACCELERATION", lin_acc_noise)
     w.set_member("BODY_FRAME_ANGULAR_ACCELERATION", ang_acc_noise)
 
