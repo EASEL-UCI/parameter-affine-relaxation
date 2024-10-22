@@ -3,16 +3,17 @@
 import numpy as np
 from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
                                     AffineModelParameters, VectorList
-from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel
+from par.dynamics.models import CrazyflieModel, ParameterAffineQuadrotorModel, \
+                                AsymmetricQuadrotorModel
 from par.utils.math import random_unit_quaternion
 from par.mpc import NMPC
 from par.mhe import MHPE
 
 
 # Perturb model parameters
-model_nominal = CrazyflieModel(0.1 * np.ones(3))
+model_nominal = AsymmetricQuadrotorModel(0.1 * np.ones(3)) #CrazyflieModel(0.1 * np.ones(3))
 param_nominal = model_nominal.parameters
-perturb = np.random.uniform(low=0.75, high=1.25, size=model_nominal.ntheta)
+perturb = np.random.uniform(low=0.5, high=1.5, size=model_nominal.ntheta)
 param_perturb = ModelParameters(perturb * param_nominal.as_array())
 
 # Get inacurrate and accurate models
@@ -24,7 +25,7 @@ model_acc = ParameterAffineQuadrotorModel(
 # Init MHPE
 dt = 0.05
 M = 10
-P = np.eye(model_inacc.ntheta)
+P = 0.1 * np.eye(model_inacc.ntheta)
 S = np.eye(model_inacc.nw)
 mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin="proxqp")
 
@@ -69,7 +70,7 @@ xs = VectorList()
 us = VectorList()
 
 # Iterate sim
-sim_len = 100
+sim_len = 200
 for k in range(sim_len):
     # Solve, update warmstarts, and get the control input
     nmpc.solve(
@@ -82,8 +83,8 @@ for k in range(sim_len):
     u = us_guess.get(0)
 
     # Generate Guassian noise on the acceleration
-    lin_acc_noise = np.random.uniform(low=-5.0, high=5.0, size=3)
-    ang_acc_noise = np.random.uniform(low=-5.0, high=5.0, size=3)
+    lin_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
+    ang_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
     w.set_member("BODY_FRAME_LINEAR_ACCELERATION", lin_acc_noise)
     w.set_member("BODY_FRAME_ANGULAR_ACCELERATION", ang_acc_noise)
 
