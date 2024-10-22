@@ -1,4 +1,5 @@
 from typing import List, Union
+import time
 
 import casadi as cs
 import numpy as np
@@ -339,6 +340,7 @@ class MHPE():
         self._model = model
         self._plugin = plugin
 
+        self._solve_time = 0.0
         self._sol = {}
         self._xs = VectorList(x0)
         self._us = VectorList()
@@ -373,7 +375,8 @@ class MHPE():
         self._ws = VectorList()
 
     def get_solver_stats(self) -> dict:
-        return self._solver.stats()
+        stats = self._solver.stats()
+        return self._fix_solver_stats(stats)
 
     def get_full_solution(self) -> dict:
         return self._sol
@@ -423,8 +426,12 @@ class MHPE():
                     + self._ws.get(k).as_list()
 
         # Solve
+        st = time.perf_counter()
         self._sol = self._solver(
             x0=guess, p=p, lbx=lbd, ubx=ubd, lbg=self._lbg, ubg=self._ubg)
+        et = time.perf_counter()
+        self._solve_time = et - st
+
         self._update_estimates()
         return self._sol
 
@@ -484,12 +491,29 @@ class MHPE():
         self._ubg = ubg
 
         # Create NLP solver
-        opts = {"error_on_fail": False}
+        opts = self._set_solver_opts()
         nlp_prob = {"f": J, "x": d, "p": p, "g": g}
         if self._is_qp():
             return cs.qpsol("qp_solver", self._plugin, nlp_prob, opts)
         else:
             return cs.nlpsol("nlp_solver", self._plugin, nlp_prob, opts)
+
+    def _set_solver_opts(self) -> dict:
+        opts = {"error_on_fail": False}
+        if self._plugin == 'osqp':
+            opts['osqp.check_termination'] = 1000
+        elif self._plugin == 'ipopt':
+            opts['ipopt.max_iter'] = 1000
+        return opts
+
+    def _fix_solver_stats(self, stats: dict) -> dict:
+        try:
+            if stats['t_wall_solver'] <= 0.0:
+                stats['t_wall_solver'] = self._solve_time
+        except KeyError:
+            if stats['t_wall_total'] <= 0.0:
+                stats['t_wall_total'] = self._solve_time
+        return stats
 
     def _measurements_are_full(
         self
