@@ -391,6 +391,7 @@ class MHPE():
         self,
         xM: State,
         uM: Input,
+        wM: ProcessNoise = ProcessNoise(),
         lb_theta: Union[ModelParameters, AffineModelParameters] = None,
         ub_theta: Union[ModelParameters, AffineModelParameters] = None,
         lbw: ProcessNoise = None,
@@ -399,7 +400,7 @@ class MHPE():
         ws_guess: VectorList = None,
     ) -> dict:
         # Update measurement history
-        self._update_measurements(xM, uM)
+        self._update_measurements(xM, uM, wM)
 
         # Skip this solver call if measurement history isn't full length
         if not self._measurements_are_full():
@@ -463,7 +464,7 @@ class MHPE():
             d += [wk]
 
             # Get the state at the end of the time step
-            xf = self._model.F(dt=self._dt, x=xk, u=uk, w=wk, theta=theta)
+            xf = self._model.F_euler(dt=self._dt, x=xk, u=uk, w=wk, theta=theta)
 
             # New constant for the state at the end of the interval
             xk = cs.SX.sym('x' + str(k+1), self._model.nx)
@@ -501,9 +502,9 @@ class MHPE():
     def _set_solver_opts(self) -> dict:
         opts = {'error_on_fail': False}
         if self._plugin == 'osqp':
-            opts['osqp.check_termination'] = 1000
+            opts['osqp.check_termination'] = 500
         elif self._plugin == 'ipopt':
-            opts['ipopt.max_iter'] = 1000
+            opts['ipopt.max_iter'] = 500
         return opts
 
     def _fix_solver_stats(self, stats: dict) -> dict:
@@ -528,6 +529,7 @@ class MHPE():
         self,
         xM: State,
         uM: State,
+        wM: ProcessNoise,
     ) -> None:
         if self._measurements_are_full():
             self._xs.pop(0)
@@ -535,7 +537,7 @@ class MHPE():
             self._ws.pop(0)
         self._xs.append(xM)
         self._us.append(uM)
-        self._ws.append(ProcessNoise())
+        self._ws.append(wM)
 
     def _update_estimates(self):
         self._theta = self._parameter_obj(

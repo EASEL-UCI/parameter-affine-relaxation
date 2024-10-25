@@ -11,7 +11,7 @@ from par.optimization import NMPC, MHPE
 # Perturb model parameters
 model_nominal = CrazyflieModel(0.1 * np.ones(3))
 param_nominal = model_nominal.parameters
-perturb = np.random.uniform(low=0.5, high=1.5, size=model_nominal.ntheta)
+perturb = np.random.uniform(low=0.5, high=2.0, size=model_nominal.ntheta)
 param_perturb = ModelParameters(perturb * param_nominal.as_array())
 
 # Get inacurrate and accurate models
@@ -30,10 +30,10 @@ model_acc = ParameterAffineQuadrotorModel(
 dt = 0.05
 M = 10
 P = np.diag(np.hstack((
-    1.0, 1.0 * np.ones(3), 1e-5 * np.ones(3), 1.0 * np.ones(3)
+    1.0, 1.0 * np.ones(3), 1.0e-6 * np.ones(3), 1.0e-6 * np.ones(3)
 )))
-S = np.eye(model_inacc.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin='proxqp')
+S = 1.0e6 * np.eye(model_inacc.nw)
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin='osqp')
 
 # Init MPC
 N = 20
@@ -52,7 +52,7 @@ x.set_member('BODY_FRAME_ANGULAR_VELOCITY', np.random.uniform(-10.0, 10.0, size=
 # MHE stuff
 mhpe.reset_measurements(x)
 lb_theta = 0.5 * param_nominal.as_array() * np.ones(model_nominal.ntheta)
-ub_theta = 1.5 * param_nominal.as_array() * np.ones(model_nominal.ntheta)
+ub_theta = 2.0 * param_nominal.as_array() * np.ones(model_nominal.ntheta)
 lb_theta_aff_init = ModelParameters(lb_theta).as_affine().as_array()
 ub_theta_aff_init = ModelParameters(ub_theta).as_affine().as_array()
 lb_theta_aff = AffineModelParameters(np.minimum(lb_theta_aff_init, ub_theta_aff_init))
@@ -95,7 +95,7 @@ for k in range(sim_len):
     us.append(u)
 
     # Get parameter estimate
-    mhpe.solve(x, u, lb_theta=lb_theta_aff, ub_theta=ub_theta_aff)
+    mhpe.solve(x, u, w, lb_theta=lb_theta_aff, ub_theta=ub_theta_aff)
     theta = mhpe.get_parameter_estimate()
 
     print(f'\ninput {k}: \n{u.as_array()}')
