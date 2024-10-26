@@ -17,8 +17,8 @@ def get_process_noise_seed() -> VectorList:
 
 def get_random_state() -> State:
     x = State()
-    x['POSITION'] = np.random.uniform(POS_MIN, POS_MAX)
-    x['ATTITUDE'] = random_unit_quaternion()
-    x['BODY_FRAME_LINEAR_VELOCITY'] = np.random.uniform(VEL_MIN, VEL_MAX)
-    x['BODY_FRAME_ANGULAR_VELOCITY'] = np.random.uniform(VEL_MIN, VEL_MAX)
+    x['position_wf'] = np.random.uniform(POS_MIN, POS_MAX)
+    x['attitude'] = random_unit_quaternion()
+    x['linear_velocity_bf'] = np.random.uniform(VEL_MIN, VEL_MAX)
+    x['angular_velocity_bf'] = np.random.uniform(VEL_MIN, VEL_MAX)
     return x

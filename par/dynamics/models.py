@@ -200,10 +200,10 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         self._set_affine_model()
 
     def _set_affine_model(self) -> None:
-        p = symbolic('POSITION', STATE_CONFIG)
-        q = symbolic('ATTITUDE', STATE_CONFIG)
-        vB = symbolic('BODY_FRAME_LINEAR_VELOCITY', STATE_CONFIG)
-        wB = symbolic('BODY_FRAME_ANGULAR_VELOCITY', STATE_CONFIG)
+        p = symbolic('position_wf', STATE_CONFIG)
+        q = symbolic('attitude', STATE_CONFIG)
+        vB = symbolic('linear_velocity_bf', STATE_CONFIG)
+        wB = symbolic('angular_velocity_bf', STATE_CONFIG)
         x = cs.SX(cs.vertcat(p, q, vB, wB))
 
         g = cs.vertcat(0, 0, -GRAVITY)
@@ -217,7 +217,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         ))
 
         # Parameter-coupled dynamics
-        u = symbolic('THRUSTS', INPUT_CONFIG)
+        u = symbolic('thrusts', INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             cs.SX.ones(1, self.nu),
@@ -271,10 +271,10 @@ class NonlinearQuadrotorModel(DynamicsModel):
             self._parameters.as_affine(), self.r, self.s, self.lbu, self.ubu)
 
     def _set_model(self) -> None:
-        p = symbolic('POSITION', STATE_CONFIG)
-        q = symbolic('ATTITUDE', STATE_CONFIG)
-        vB = symbolic('BODY_FRAME_LINEAR_VELOCITY', STATE_CONFIG)
-        wB = symbolic('BODY_FRAME_ANGULAR_VELOCITY', STATE_CONFIG)
+        p = symbolic('position_wf', STATE_CONFIG)
+        q = symbolic('attitude', STATE_CONFIG)
+        vB = symbolic('linear_velocity_bf', STATE_CONFIG)
+        wB = symbolic('angular_velocity_bf', STATE_CONFIG)
         x = cs.SX(cs.vertcat(p, q, vB, wB))
 
         m = symbolic('m', PARAMETER_CONFIG)
@@ -293,7 +293,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
         # Control input terms
-        u = symbolic('THRUSTS', INPUT_CONFIG)
+        u = symbolic('thrusts', INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
             cs.SX.ones(1, self.nu),
@@ -390,16 +390,16 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         return x + dt/6 * (k1 +2*k2 +2*k3 +k4)
 
     def _set_lifted_model(self) -> None:
-        pB_0 = symbolic('BODY_FRAME_POSITION', KOOPMAN_STATE_CONFIG)
-        vB_0 = symbolic('BODY_FRAME_LINEAR_VELOCITY', KOOPMAN_STATE_CONFIG)
-        gB_0 = symbolic('BODY_FRAME_GRAVITY', KOOPMAN_STATE_CONFIG)
-        wB_0 = symbolic('BODY_FRAME_ANGULAR_VELOCITY', KOOPMAN_STATE_CONFIG)
+        pB_0 = symbolic('position_bf', KOOPMAN_STATE_CONFIG)
+        vB_0 = symbolic('linear_velocity_bf', KOOPMAN_STATE_CONFIG)
+        gB_0 = symbolic('gravity_bf', KOOPMAN_STATE_CONFIG)
+        wB_0 = symbolic('angular_velocity_bf', KOOPMAN_STATE_CONFIG)
         z0 = cs.vertcat(pB_0, vB_0, gB_0, wB_0)
 
-        pB = symbolic('BODY_FRAME_POSITION', KOOPMAN_STATE_CONFIG, self._order)
-        vB = symbolic('BODY_FRAME_LINEAR_VELOCITY', KOOPMAN_STATE_CONFIG, self._order)
-        gB = symbolic('BODY_FRAME_GRAVITY', KOOPMAN_STATE_CONFIG, self._order)
-        wB = symbolic('BODY_FRAME_ANGULAR_VELOCITY', KOOPMAN_STATE_CONFIG, self._order)
+        pB = symbolic('position_bf', KOOPMAN_STATE_CONFIG, self._order)
+        vB = symbolic('linear_velocity_bf', KOOPMAN_STATE_CONFIG, self._order)
+        gB = symbolic('gravity_bf', KOOPMAN_STATE_CONFIG, self._order)
+        wB = symbolic('angular_velocity_bf', KOOPMAN_STATE_CONFIG, self._order)
         z = cs.vertcat(pB, vB, gB, wB)
 
         m = symbolic('m', PARAMETER_CONFIG)
@@ -439,7 +439,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
             -cs.SX(self._r.as_array()).T,
             cs.SX(alternating_ones(self.nu)).T * b.T,
         ))
-        u = symbolic('THRUSTS', INPUT_CONFIG)
+        u = symbolic('thrusts', INPUT_CONFIG)
 
         # Process noise
         w = cs.SX.sym('w', self.nw)

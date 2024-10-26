@@ -179,33 +179,33 @@ class State(DynamicsVector):
         return KoopmanLiftedState(np.hstack(z).flatten(), order)
 
     def get_zero_order_koopman_members(self) -> dict:
-        rot = quat.Q(self._members['ATTITUDE'])
+        rot = quat.Q(self._members['attitude'])
         z0_members = {}
-        z0_members['BODY_FRAME_POSITION'] = rot.T @ self._members['POSITION']
-        z0_members['BODY_FRAME_LINEAR_VELOCITY'] = \
-            self._members['BODY_FRAME_LINEAR_VELOCITY']
-        z0_members['BODY_FRAME_GRAVITY'] = rot.T @ (-GRAVITY * math.e3())
-        z0_members['BODY_FRAME_ANGULAR_VELOCITY'] = \
-            self._members['BODY_FRAME_ANGULAR_VELOCITY']
+        z0_members['position_bf'] = rot.T @ self._members['position_wf']
+        z0_members['linear_velocity_bf'] = \
+            self._members['linear_velocity_bf']
+        z0_members['gravity_bf'] = rot.T @ (-GRAVITY * math.e3())
+        z0_members['angular_velocity_bf'] = \
+            self._members['angular_velocity_bf']
         return z0_members
 
     def get_lifted_koopman_members(self, J: np.ndarray, order: int) -> dict:
         z0_members = self.get_zero_order_koopman_members()
         ws = attitude.get_ws(
-            z0_members['BODY_FRAME_ANGULAR_VELOCITY'], J, order)
-        ps = position.get_ps(z0_members['BODY_FRAME_POSITION'], ws)
-        vs = velocity.get_vs(z0_members['BODY_FRAME_LINEAR_VELOCITY'], ws)
-        gs = gravity.get_gs(z0_members['BODY_FRAME_GRAVITY'], ws)
+            z0_members['angular_velocity_bf'], J, order)
+        ps = position.get_ps(z0_members['position_bf'], ws)
+        vs = velocity.get_vs(z0_members['linear_velocity_bf'], ws)
+        gs = gravity.get_gs(z0_members['gravity_bf'], ws)
 
         ps_vec = convert_casadi_to_numpy_array(cs.vertcat(*ps))
         vs_vec = convert_casadi_to_numpy_array(cs.vertcat(*vs))
         gs_vec = convert_casadi_to_numpy_array(cs.vertcat(*gs))
         ws_vec = convert_casadi_to_numpy_array(cs.vertcat(*ws))
         z_members = {}
-        z_members['BODY_FRAME_POSITION'] = ps_vec
-        z_members['BODY_FRAME_LINEAR_VELOCITY'] = vs_vec
-        z_members['BODY_FRAME_GRAVITY'] = gs_vec
-        z_members['BODY_FRAME_ANGULAR_VELOCITY'] = ws_vec
+        z_members['position_bf'] = ps_vec
+        z_members['linear_velocity_bf'] = vs_vec
+        z_members['gravity_bf'] = gs_vec
+        z_members['angular_velocity_bf'] = ws_vec
         return z_members
 
 

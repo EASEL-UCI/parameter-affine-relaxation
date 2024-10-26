@@ -19,12 +19,14 @@ model_acc = NonlinearQuadrotorModel(
 # Init MHPE
 dt = 0.05
 M = 10
-P = np.eye(model_inacc.ntheta)
-S = np.eye(model_inacc.nw)
+P = np.diag(np.hstack((
+    1.0e2, 1.0e2 * np.ones(3), 1.0e5 * np.ones(3), 1.0e2,
+)))
+S = 1.0e30 * np.eye(model_inacc.nw)
 mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin='ipopt')
 
 # Init MPC
-N = 20
+N = 10
 Q = np.eye(model_inacc.nx)
 R = 0.01 * np.eye(model_inacc.nu)
 Qf = 2.0 * Q
@@ -32,10 +34,10 @@ nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model_inacc)
 
 # Init state
 x = State()
-x.set_member('POSITION', np.random.uniform(-10.0, 10.0, size=3))
-x.set_member('ATTITUDE', random_unit_quaternion())
-x.set_member('BODY_FRAME_LINEAR_VELOCITY', np.random.uniform(-10.0, 10.0, size=3))
-x.set_member('BODY_FRAME_ANGULAR_VELOCITY', np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('position_wf', np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('attitude', random_unit_quaternion())
+x.set_member('linear_velocity_bf', np.random.uniform(-10.0, 10.0, size=3))
+x.set_member('angular_velocity_bf', np.random.uniform(-10.0, 10.0, size=3))
 
 # MHE stuff
 mhpe.reset_measurements(x)
@@ -74,8 +76,8 @@ for k in range(sim_len):
     # Generate Guassian noise on the acceleration
     lin_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
     ang_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
-    w.set_member('BODY_FRAME_LINEAR_ACCELERATION', lin_acc_noise)
-    w.set_member('BODY_FRAME_ANGULAR_ACCELERATION', ang_acc_noise)
+    w.set_member('linear_acceleration_bf', lin_acc_noise)
+    w.set_member('angular_acceleration_bf', ang_acc_noise)
 
     # Update current state and trajectory history
     x = model_acc.step_sim(dt=dt, x=x, u=u, w=w)
@@ -83,7 +85,7 @@ for k in range(sim_len):
     us.append(u)
 
     # Get parameter estimate
-    mhpe.solve(x, u)
+    mhpe.solve(x, u, w)
     theta = mhpe.get_parameter_estimate()
 
     print(f'\ninput {k}: \n{u.as_array()}')

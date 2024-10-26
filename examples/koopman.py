@@ -29,10 +29,10 @@ Qf = 2.0 * Q
 km_mpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=km_model, is_verbose=True)
 
 x = State()
-x.set_member('POSITION', uniform(-10.0, 10.0, size=3))
-x.set_member('ATTITUDE', random_unit_quaternion())
-x.set_member('BODY_FRAME_LINEAR_VELOCITY', uniform(-10.0, 10.0, size=3))
-x.set_member('BODY_FRAME_ANGULAR_VELOCITY', uniform(-10.0, 10.0, size=3))
+x.set_member('position_wf', uniform(-10.0, 10.0, size=3))
+x.set_member('attitude', random_unit_quaternion())
+x.set_member('linear_velocity_bf', uniform(-10.0, 10.0, size=3))
+x.set_member('angular_velocity_bf', uniform(-10.0, 10.0, size=3))
 
 J = np.diag(np.hstack((
     km_model.parameters.get_member('Ixx'),

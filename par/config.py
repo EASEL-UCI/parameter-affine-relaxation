@@ -96,25 +96,25 @@ RELAXED_PARAMETER_CONFIG = {
 
 
 STATE_CONFIG = {
-    'POSITION': {
+    'position_wf': {
         'dimensions': 3,
         'lower_bound': np.hstack((BIG_NEGATIVE * np.ones(3))),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    'ATTITUDE': {
+    'attitude': {
         'dimensions': 4,
         'lower_bound': -1.0 * np.ones(4),
         'upper_bound': 1.0 * np.ones(4),
         'default_value': np.hstack((1.0, np.zeros(3))),
     },
-    'BODY_FRAME_LINEAR_VELOCITY': {
+    'linear_velocity_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    'BODY_FRAME_ANGULAR_VELOCITY': {
+    'angular_velocity_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
@@ -124,25 +124,25 @@ STATE_CONFIG = {
 
 
 KOOPMAN_STATE_CONFIG = {
-    'BODY_FRAME_POSITION': {
+    'position_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    'BODY_FRAME_LINEAR_VELOCITY': {
+    'linear_velocity_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    'BODY_FRAME_GRAVITY': {
+    'gravity_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.array([0.0, 0.0, -GRAVITY]),
     },
-    'BODY_FRAME_ANGULAR_VELOCITY': {
+    'angular_velocity_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
@@ -152,7 +152,7 @@ KOOPMAN_STATE_CONFIG = {
 
 
 INPUT_CONFIG = {
-    'THRUSTS': {
+    'thrusts': {
         'dimensions': 4,
         'lower_bound': np.zeros(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
@@ -162,25 +162,25 @@ INPUT_CONFIG = {
 
 
 PROCESS_NOISE_CONFIG = {
-    'INERTIAL_FRAME_LINEAR_VELOCITY': {
+    'linear_velocity_wf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    'ATTITUDE_RATE': {
+    'attitude_rate': {
         'dimensions': 4,
         'lower_bound': BIG_NEGATIVE * np.ones(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
         'default_value': np.zeros(4),
     },
-    'BODY_FRAME_LINEAR_ACCELERATION': {
+    'linear_acceleration_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    'BODY_FRAME_ANGULAR_ACCELERATION': {
+    'angular_acceleration_bf': {
         'dimensions': 3,
         'lower_bound': BIG_NEGATIVE * np.ones(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
@@ -190,10 +190,29 @@ PROCESS_NOISE_CONFIG = {
 
 
 KOOPMAN_PROCESS_NOISE_CONFIG = {
-    'PROCESS_NOISE': {
-        'dimensions': 12,
-        'lower_bound': BIG_NEGATIVE * np.ones(13),
-        'upper_bound': BIG_POSITIVE * np.ones(13),
+    'linear_velocity_bf': {
+        'dimensions': 3,
+        'lower_bound': BIG_NEGATIVE * np.ones(3),
+        'upper_bound': BIG_POSITIVE * np.ones(3),
+        'default_value': np.zeros(3),
+    },
+    'linear_acceleration_bf': {
+        'dimensions': 3,
+        'lower_bound': BIG_NEGATIVE * np.ones(3),
+        'upper_bound': BIG_POSITIVE * np.ones(3),
+        'default_value': np.zeros(3),
+    },
+    'gravity_rate_bf': {
+        'dimensions': 3,
+        'lower_bound': BIG_NEGATIVE * np.ones(3),
+        'upper_bound': BIG_POSITIVE * np.ones(3),
+        'default_value': np.array([0.0, 0.0, -GRAVITY]),
+    },
+    'angular_acceleration_bf': {
+        'dimensions': 3,
+        'lower_bound': BIG_NEGATIVE * np.ones(3),
+        'upper_bound': BIG_POSITIVE * np.ones(3),
+        'default_value': np.zeros(3),
     },
 }
 
