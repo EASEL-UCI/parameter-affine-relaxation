@@ -198,8 +198,22 @@ KOOPMAN_PROCESS_NOISE_CONFIG = {
 }
 
 
+NLP_SOLVER_CONFIG = {
+    'ipopt': {
+        'ipopt.max_iter': 1000,
+    }
+}
+
+
 QP_SOLVER_CONFIG = {
-    'qpoases': 'qpoases',
-    'osqp': 'osqp',
-    'proxqp': 'proxqp',
+    'qpoases': {
+        'qpoases.max_iter': 1000,
+    },
+    'osqp': {
+        'osqp.check_termination': 1000,
+        'osqp.max_iter': 1000,
+    },
+    'proxqp': {
+        'proxqp.max_iter': 1000
+    },
 }

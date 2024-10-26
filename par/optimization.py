@@ -9,7 +9,7 @@ import matplotlib
 
 from par.constants import BIG_NEGATIVE, BIG_POSITIVE
 from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG, \
-                        PROCESS_NOISE_CONFIG, QP_SOLVER_CONFIG
+                        PROCESS_NOISE_CONFIG, QP_SOLVER_CONFIG, NLP_SOLVER_CONFIG
 from par.dynamics.models import DynamicsModel, NonlinearQuadrotorModel, \
                                 ParameterAffineQuadrotorModel, KoopmanLiftedQuadrotorModel
 from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
@@ -492,19 +492,22 @@ class MHPE():
         self._ubg = ubg
 
         # Create NLP solver
-        opts = self._set_solver_opts()
+        opts = self._get_solver_opts()
         nlp_prob = {'f': J, 'x': d, 'p': p, 'g': g}
         if self._is_qp():
             return cs.qpsol('qp_solver', self._plugin, nlp_prob, opts)
         else:
             return cs.nlpsol('nlp_solver', self._plugin, nlp_prob, opts)
 
-    def _set_solver_opts(self) -> dict:
+    def _get_solver_opts(self) -> dict:
         opts = {'error_on_fail': False}
-        if self._plugin == 'osqp':
-            opts['osqp.check_termination'] = 500
-        elif self._plugin == 'ipopt':
-            opts['ipopt.max_iter'] = 500
+        try:
+            solver_config = QP_SOLVER_CONFIG[self._plugin]
+        except KeyError:
+            solver_config = NLP_SOLVER_CONFIG[self._plugin]
+        finally:
+            for key in solver_config.keys():
+                opts[key] = solver_config[key]
         return opts
 
     def _fix_solver_stats(self, stats: dict) -> dict:
