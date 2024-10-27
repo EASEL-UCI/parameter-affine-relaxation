@@ -85,8 +85,8 @@ for k in range(sim_len):
     u = us_guess.get(0)
 
     # Generate uniform noise on the acceleration
-    lin_acc_noise = np.random.uniform(low=-20.0, high=20.0, size=3)
-    ang_acc_noise = np.random.uniform(low=-20.0, high=20.0, size=3)
+    lin_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
+    ang_acc_noise = np.random.uniform(low=-10.0, high=10.0, size=3)
     w.set_member('linear_acceleration_bf', lin_acc_noise)
     w.set_member('angular_acceleration_bf', ang_acc_noise)
 
