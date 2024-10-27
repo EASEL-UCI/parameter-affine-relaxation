@@ -6,29 +6,25 @@ from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
 from par.dynamics.models import CrazyflieModel, NonlinearQuadrotorModel
 from par.utils.math import random_unit_quaternion
 from par.optimization import NMPC, MHPE
+from par.dynamics.vectors import get_affine_parameter_bounds
 
+
+# Parameter perturbation factors
+lb_factor = 0.5
+ub_factor = 2.0
 
 # Perturb model parameters
 model_inacc = CrazyflieModel(0.1 * np.ones(3))
 param_nominal = model_inacc.parameters
-perturb = np.random.uniform(low=0.5, high=1.5, size=model_inacc.ntheta)
+perturb = np.random.uniform(low=lb_factor, high=ub_factor, size=model_inacc.ntheta)
 param_perturb = ModelParameters(perturb * param_nominal.as_array())
-model_acc = NonlinearQuadrotorModel(
-    param_perturb, model_inacc.r, model_inacc.s, model_inacc.lbu, model_inacc.ubu)
-
-# Init MHPE
-dt = 0.05
-M = 10
-P = np.diag(np.hstack((
-    1.0e2, 1.0e2 * np.ones(3), 1.0e5 * np.ones(3), 1.0e2,
-)))
-S = 1.0e30 * np.eye(model_inacc.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, plugin='ipopt')
+model_acc = NonlinearQuadrotorModel(param_perturb, model_inacc.lbu, model_inacc.ubu)
 
 # Init MPC
+dt = 0.05
 N = 10
 Q = np.eye(model_inacc.nx)
-R = 0.01 * np.eye(model_inacc.nu)
+R = 1.0e-3 * np.eye(model_inacc.nu)
 Qf = 2.0 * Q
 nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model_inacc)
 
@@ -39,14 +35,25 @@ x.set_member('attitude', random_unit_quaternion())
 x.set_member('linear_velocity_bf', np.random.uniform(-10.0, 10.0, size=3))
 x.set_member('angular_velocity_bf', np.random.uniform(-10.0, 10.0, size=3))
 
-# MHE stuff
-mhpe.reset_measurements(x)
-lb_theta = ModelParameters(
-    0.5 * param_nominal.as_array() * np.ones(model_inacc.ntheta))
-ub_theta = ModelParameters(
-    1.5 * param_nominal.as_array() * np.ones(model_inacc.ntheta))
-print(lb_theta.as_array())
-print(ub_theta.as_array())
+# Init MHPE
+M = 10
+P = np.diag(np.hstack((
+    1.0e2,
+    1.0e1 * np.ones(3),
+    1.0e5 * np.ones(3),
+    1.0e0 * np.ones(4),
+    1.0e2 * np.ones(4),
+    1.0e2 * np.ones(4),
+    1.0e2 * np.ones(4)
+)))
+S = 1.0e20 * np.eye(model_inacc.nw)
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, x0=x, plugin='ipopt')
+
+# parameter bounds
+lb_theta_init = lb_factor * param_nominal.as_array()
+ub_theta_init = ub_factor * param_nominal.as_array()
+lb_theta = ModelParameters(np.minimum(lb_theta_init, ub_theta_init))
+ub_theta = ModelParameters(np.maximum(lb_theta_init, ub_theta_init))
 
 # MPC args
 theta = model_inacc.parameters
@@ -73,9 +80,9 @@ for k in range(sim_len):
     us_guess = nmpc.get_predicted_inputs()
     u = us_guess.get(0)
 
-    # Generate Guassian noise on the acceleration
-    lin_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
-    ang_acc_noise = np.random.normal(loc=1.0, scale=1.0, size=3)
+    # Generate uniform noise on the acceleration
+    lin_acc_noise = np.random.uniform(low=-20.0, high=20.0, size=3)
+    ang_acc_noise = np.random.uniform(low=-20.0, high=20.0, size=3)
     w.set_member('linear_acceleration_bf', lin_acc_noise)
     w.set_member('angular_acceleration_bf', ang_acc_noise)
 

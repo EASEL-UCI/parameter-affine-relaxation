@@ -13,7 +13,7 @@ PARAMETER_CONFIG = {
     'a': {
         'dimensions': 3,
         'lower_bound': np.zeros(3),
-        'upper_bound': BIG_POSITIVE * np.zeros(3),
+        'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
     'Ixx': {
@@ -34,59 +34,77 @@ PARAMETER_CONFIG = {
         'upper_bound': BIG_POSITIVE,
         'default_value': 0.0,
     },
-    'b': {
-        'dimensions': 1,
-        'lower_bound': 0.0,
-        'upper_bound': BIG_POSITIVE,
-        'default_value': 0.0,
+    'k': {
+        'dimensions': 4,
+        'lower_bound': np.zeros(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
+    },
+    'c': {
+        'dimensions': 4,
+        'lower_bound': np.zeros(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
+    },
+    'r': {
+        'dimensions': 4,
+        'lower_bound': BIG_NEGATIVE * np.ones(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
+    },
+    's': {
+        'dimensions': 4,
+        'lower_bound': BIG_NEGATIVE * np.ones(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
     },
 }
 
 
 RELAXED_PARAMETER_CONFIG = {
-    'M': {
-        'dimensions': 1,
-        'lower_bound': 0.0,
-        'upper_bound': BIG_POSITIVE,
-        'default_value': 0.0,
-    },
-    'A': {
+    'a/m': {
         'dimensions': 3,
         'lower_bound': np.zeros(3),
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    'IXX': {
+    'k/m': {
+        'dimensions': 4,
+        'lower_bound': np.zeros(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
+    },
+    's/Ixx': {
+        'dimensions': 4,
+        'lower_bound': BIG_NEGATIVE * np.ones(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
+    },
+    'r/Iyy': {
+        'dimensions': 4,
+        'lower_bound': BIG_NEGATIVE * np.ones(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
+    },
+    'c/Izz': {
+        'dimensions': 4,
+        'lower_bound': np.zeros(4),
+        'upper_bound': BIG_POSITIVE * np.ones(4),
+        'default_value': np.zeros(4),
+    },
+    'Ixx_cross': {
         'dimensions': 1,
         'lower_bound': BIG_NEGATIVE,
         'upper_bound': BIG_POSITIVE,
         'default_value': 0.0,
     },
-    'IYY': {
+    'Iyy_cross': {
         'dimensions': 1,
         'lower_bound': BIG_NEGATIVE,
         'upper_bound': BIG_POSITIVE,
         'default_value': 0.0,
     },
-    'IZZ': {
-        'dimensions': 1,
-        'lower_bound': 0.0,
-        'upper_bound': BIG_POSITIVE,
-        'default_value': 0.0,
-    },
-    'IXX_rb': {
-        'dimensions': 1,
-        'lower_bound': BIG_NEGATIVE,
-        'upper_bound': BIG_POSITIVE,
-        'default_value': 0.0,
-    },
-    'IYY_rb': {
-        'dimensions': 1,
-        'lower_bound': BIG_NEGATIVE,
-        'upper_bound': BIG_POSITIVE,
-        'default_value': 0.0,
-    },
-    'IZZ_rb': {
+    'Izz_cross': {
         'dimensions': 1,
         'lower_bound': BIG_NEGATIVE,
         'upper_bound': BIG_POSITIVE,
@@ -152,7 +170,7 @@ KOOPMAN_STATE_CONFIG = {
 
 
 INPUT_CONFIG = {
-    'thrusts': {
+    'normalized_squared_motor_speed': {
         'dimensions': 4,
         'lower_bound': np.zeros(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
@@ -220,19 +238,19 @@ KOOPMAN_PROCESS_NOISE_CONFIG = {
 NLP_SOLVER_CONFIG = {
     'ipopt': {
         'ipopt.max_iter': 1000,
-    }
+        'ipopt.print_level': 0,
+        'print_time': 0,
+        'ipopt.sb': 'yes',
+    },
 }
 
 
 QP_SOLVER_CONFIG = {
-    'qpoases': {
-        'qpoases.max_iter': 1000,
-    },
+    'qpoases': {},
     'osqp': {
-        'osqp.check_termination': 1000,
-        'osqp.max_iter': 1000,
+        'osqp.max_iter': 4000,
     },
     'proxqp': {
-        'proxqp.max_iter': 1000
+        'proxqp.max_iter': 1000,
     },
 }

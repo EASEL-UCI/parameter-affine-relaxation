@@ -104,7 +104,7 @@ class NMPC():
 
         t = dt * np.arange(N)
         interp_N = 1000
-        fig, axs = plt.subplots(5, figsize=(11, 9))
+        fig, axs = plt.subplots(5, figsize=(9, 7))
 
         if is_none(us):
             us = self.get_predicted_inputs().as_array()
@@ -262,14 +262,11 @@ class NMPC():
 
         # Create NLP solver
         nlp_prob = {'f': J, 'x': d, 'p': p, 'g': g}
-        opts = {'ipopt.max_iter': 1000} #{'ipopt.hessian_approximation': 'exact'}
+        opts = {'ipopt.max_iter': 1000}
         if not is_verbose:
             opts['ipopt.print_level'] = 0
             opts['print_time'] = 0
             opts['ipopt.sb'] = 'yes'
-            #opts['ipopt.hessian_approximation'] = 'exact'
-        #opts = {'error_on_fail': False}
-        #return cs.qpsol('nlp_solver', 'osqp', nlp_prob, opts)
         return cs.nlpsol('nlp_solver', 'ipopt', nlp_prob, opts)
 
     def _get_stage_cost(
