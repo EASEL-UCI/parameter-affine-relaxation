@@ -41,21 +41,19 @@ class NMPC():
 
         if type(model) == KoopmanLiftedQuadrotorModel:
             self._is_koopman = True
-            self._lbx = KoopmanLiftedState(
-                get_config_values(
-                    'lower_bound', model.state_config, copies=model.order),
-                self._model.order
-            )
-            self._ubx = KoopmanLiftedState(
-                get_config_values(
-                    'upper_bound', KOOPMAN_STATE_CONFIG, copies=model.order),
-                self._model.order
-            )
+            self._state_class = KoopmanLiftedState
         else:
             self._is_koopman = False
-            self._lbx = State(get_config_values('lower_bound', STATE_CONFIG))
-            self._ubx = State(get_config_values('upper_bound', STATE_CONFIG))
+            self._state_class = State
 
+        self._lbx = self._state_class(
+            get_config_values('lower_bound', model.state_config, model.order),
+            self._model.order,
+        )
+        self._ubx = self._state_class(
+            get_config_values('upper_bound', model.state_config, model.order),
+            self._model.order,
+        )
         self._lbu = Input(get_config_values('lower_bound', INPUT_CONFIG))
         self._ubu = Input(get_config_values('upper_bound', INPUT_CONFIG))
         self._theta = self._model.parameters
@@ -344,27 +342,21 @@ class MHPE():
         self._ws = VectorList()
         self._theta = self._model.parameters
 
-        self._lbg = []
-        self._ubg = []
-        self._lba = BIG_NEGATIVE * np.ones(M * model.nx)
-        self._uba = BIG_POSITIVE * np.ones(M * model.nx)
+        if type(model) == ParameterAffineQuadrotorModel:
+            self._parameter_class = AffineModelParameters
+        else:
+            self._parameter_class = ModelParameters
+
+        self._lb_theta = self._parameter_class(get_config_values(
+            'lower_bound', model.parameters.config))
+        self._ub_theta = self._parameter_class(get_config_values(
+            'upper_bound', model.parameters.config))
         self._lbw = ProcessNoise(get_config_values(
             'lower_bound', PROCESS_NOISE_CONFIG))
         self._ubw = ProcessNoise(get_config_values(
             'upper_bound', PROCESS_NOISE_CONFIG))
-
-        if type(model) == ParameterAffineQuadrotorModel:
-            self._parameter_obj = AffineModelParameters
-            self._lb_theta = AffineModelParameters(get_config_values(
-                'lower_bound', model.parameters.config))
-            self._ub_theta = AffineModelParameters(get_config_values(
-                'upper_bound', model.parameters.config))
-        else:
-            self._parameter_obj = ModelParameters
-            self._lb_theta = ModelParameters(get_config_values(
-                'lower_bound', model.parameters.config))
-            self._ub_theta = ModelParameters(get_config_values(
-                'upper_bound', model.parameters.config))
+        self._lbg = []
+        self._ubg = []
         self._solver = self._init_solver()
 
     def reset_measurements(self, x0: State) -> None:
@@ -540,7 +532,7 @@ class MHPE():
         self._ws.append(wM)
 
     def _update_estimates(self):
-        self._theta = self._parameter_obj(
+        self._theta = self._parameter_class(
             np.array(self._sol['x'][:self._model.ntheta]).flatten())
         ws = []
         for i in range(self._M):
@@ -560,7 +552,7 @@ class MHPE():
     def _get_parameter_cost(
         self,
         theta: cs.SX,
-        theta_ref: np.ndarray,
+        theta_ref: cs.SX,
     ) -> cs.SX:
         err = theta - theta_ref
         return err.T @ self._P @ err

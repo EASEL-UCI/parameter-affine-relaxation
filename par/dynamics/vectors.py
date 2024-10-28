@@ -88,6 +88,9 @@ class VectorList():
     def as_array(self) -> np.ndarray:
         return np.array( [vec.as_array() for vec in self._list] )
 
+    def as_list(self) -> List:
+        return list(self.as_array().flatten())
+
     def get(
         self,
         index: int = None,
@@ -181,8 +184,9 @@ class State(DynamicsVector):
     def __init__(
         self,
         x: np.ndarray = None,
+        order=1,
     ) -> None:
-        super().__init__(STATE_CONFIG, x)
+        super().__init__(STATE_CONFIG, x, order)
 
     def as_zero_order_koopman(self) -> KoopmanLiftedState:
         z0_members = self.get_zero_order_koopman_members()
