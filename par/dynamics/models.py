@@ -218,7 +218,7 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         u = symbolic('normalized_squared_motor_speed', INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
-            u.T,
+            cs.SX.ones(1, self.nu),
         ))
         A = cs.SX(cs.diag(vB))
         B = cs.SX(cs.vertcat(
@@ -228,9 +228,9 @@ class ParameterAffineQuadrotorModel(DynamicsModel):
         ))
         I = cs.SX(cs.diag(cs.vertcat(wB[1]*wB[2], wB[0]*wB[2], wB[0]*wB[1])))
         G = cs.SX(cs.vertcat(
-            cs.SX.zeros(7, 6 + 4*self.nu),
-            cs.horzcat( -A, K, cs.SX.zeros(3, 3 + 3*self.nu) ),
-            cs.horzcat( cs.SX.zeros(3, 3 + self.nu), B, -I ),
+            cs.SX.zeros(7, 7 + 3*self.nu),
+            cs.horzcat( K @ u, -A, cs.SX.zeros(3, 3 + 3*self.nu) ),
+            cs.horzcat( cs.SX.zeros(3, 4), B, -I ),
         ))
 
         # Additive process noise
@@ -278,11 +278,10 @@ class NonlinearQuadrotorModel(DynamicsModel):
         Ixx = symbolic('Ixx', PARAMETER_CONFIG)
         Iyy = symbolic('Iyy', PARAMETER_CONFIG)
         Izz = symbolic('Izz', PARAMETER_CONFIG)
-        k = symbolic('k', PARAMETER_CONFIG)
         c = symbolic('c', PARAMETER_CONFIG)
         r = symbolic('r', PARAMETER_CONFIG)
         s = symbolic('s', PARAMETER_CONFIG)
-        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, k, c, r, s))
+        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, c, r, s))
 
         # Constants
         g = cs.SX(cs.vertcat(0, 0, -GRAVITY))
@@ -293,7 +292,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         u = symbolic('normalized_squared_motor_speed', INPUT_CONFIG)
         K = cs.SX(cs.vertcat(
             cs.SX.zeros(2, self.nu),
-            k.T,
+            cs.SX.ones(1, self.nu),
         ))
         B = cs.SX(cs.vertcat(
             s.T,
@@ -466,7 +465,6 @@ def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member('Izz', 2.173 * 10**-5)
     params.set_member('r', 0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
     params.set_member('s', 0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
-    params.set_member('k', np.ones(4))
     k = 3.1582e-10
     c = 7.9379e-12
     params.set_member('c', c/k * np.ones(4))
@@ -491,7 +489,6 @@ def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member('Izz', 57.2)
     params.set_member('r', 0.14 * np.array([1.0, 1.0, -1.0, -1.0]))
     params.set_member('s', 0.315 * np.array([1.0, -1.0, -1.0, 1.0]))
-    params.set_member('k', np.ones(4))
     k = 1.6e-5
     c = 1.7e-6
     params.set_member('c', c/k * np.ones(4))
@@ -513,7 +510,6 @@ def FusionOneQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member('Izz', 1.50e-3)
     params.set_member('r', 0.0635 * np.array([1.0, 1.0, -1.0, -1.0]))
     params.set_member('s', 0.0635 * np.array([1.0, -1.0, -1.0, 1.0]))
-    params.set_member('k', np.ones(4))
     k = 0.279
     c = 0.333
     params.set_member('c', c/k * np.ones(4))

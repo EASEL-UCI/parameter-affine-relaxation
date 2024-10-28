@@ -252,8 +252,8 @@ class ModelParameters(DynamicsVector):
         Izz = self._members['Izz']
 
         aff_members = {}
+        aff_members['1/m'] = 1 / m
         aff_members['a/m'] = self._members['a'] / m
-        aff_members['k/m'] = self._members['k'] / m
         aff_members['s/Ixx'] = self._members['s'] / Ixx
         aff_members['r/Iyy'] = self._members['r'] / Iyy
         aff_members['c/Izz'] = self._members['c'] / Izz
@@ -281,11 +281,11 @@ def get_affine_parameter_bounds(
     lb_theta_aff = AffineModelParameters()
     ub_theta_aff = AffineModelParameters()
 
+    lb_theta_aff.set_member('1/m', 1 / ub_theta.get_member('m'))
+    ub_theta_aff.set_member('1/m', 1 / lb_theta.get_member('m'))
+
     lb_theta_aff.set_member('a/m', lb_theta.get_member('a') / ub_theta.get_member('m'))
     ub_theta_aff.set_member('a/m', ub_theta.get_member('a') / lb_theta.get_member('m'))
-
-    lb_theta_aff.set_member('k/m', lb_theta.get_member('k') / ub_theta.get_member('m'))
-    ub_theta_aff.set_member('k/m', ub_theta.get_member('k') / lb_theta.get_member('m'))
 
     # s/Ixx bounds
     lb_s = lb_theta.get_member('s')

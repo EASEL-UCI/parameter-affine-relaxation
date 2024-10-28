@@ -41,8 +41,8 @@ x.set_member('angular_velocity_bf', np.random.uniform(-10.0, 10.0, size=3))
 # Init MHPE
 M = 10
 P = np.diag(np.hstack((
+    1.0e0,
     np.ones(3),
-    1.0e-0 * np.ones(4),
     1.0e-1 * np.ones(4),
     1.0e-3 * np.ones(4),
     1.0e-3 * np.ones(4),
