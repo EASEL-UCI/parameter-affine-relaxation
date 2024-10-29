@@ -1,10 +1,8 @@
 #!/usr/bin/python3
 
 import numpy as np
-from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
-                                    AffineModelParameters, VectorList
-from par.dynamics.models import CrazyflieModel, NonlinearQuadrotorModel, \
-                                ParameterAffineQuadrotorModel
+from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, VectorList
+from par.dynamics.models import CrazyflieModel, NonlinearQuadrotorModel
 from par.dynamics.vectors import get_affine_parameter_bounds
 from par.utils.math import random_unit_quaternion
 from par.optimization import NMPC, MHPE
@@ -26,8 +24,8 @@ model_acc = NonlinearQuadrotorModel(param_perturb, model_inacc.lbu, model_inacc.
 # Init MPC
 dt = 0.05
 N = 10
-Q = np.eye(model_inacc_aff.nx)
-R = 1.0e-3 * np.eye(model_inacc_aff.nu)
+Q = np.diag(np.hstack((np.ones(model_inacc_aff.nx - 3), 1.0e-2 * np.ones(3))))
+R = np.eye(model_inacc_aff.nu)
 Qf = 2.0 * Q
 nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model_inacc_aff)
 
@@ -41,15 +39,15 @@ x.set_member('angular_velocity_bf', np.random.uniform(-10.0, 10.0, size=3))
 # Init MHPE
 M = 10
 P = np.diag(np.hstack((
-    1.0e0,
+    1.0e-1,
     np.ones(3),
-    1.0e-1 * np.ones(4),
     1.0e-3 * np.ones(4),
     1.0e-3 * np.ones(4),
-    1.0e-2 * np.ones(3),
+    1.0e-3 * np.ones(4),
+    1.0e1 * np.ones(3),
 )))
-S = 1.0e12 * np.eye(model_inacc_aff.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc_aff, plugin='osqp')
+S = 1.0e6 * np.eye(model_inacc_aff.nw)
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc_aff, plugin='proxqp')
 
 # MHE stuff
 lb_theta_init = lb_factor * model_inacc.parameters.as_array()
@@ -57,10 +55,9 @@ ub_theta_init = ub_factor * model_inacc.parameters.as_array()
 lb_theta = ModelParameters(np.minimum(lb_theta_init, ub_theta_init))
 ub_theta = ModelParameters(np.maximum(lb_theta_init, ub_theta_init))
 lb_theta_aff, ub_theta_aff = get_affine_parameter_bounds(lb_theta, ub_theta)
-print(lb_theta_aff.as_array())
 
 # MPC args
-theta = param_perturb.as_affine()
+theta = model_inacc.parameters.as_affine()
 xref = VectorList( N * [State()] )
 uref = VectorList( N * [Input()] )
 xs_guess = None
