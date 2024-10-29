@@ -94,7 +94,7 @@ class VectorList():
     def get(
         self,
         index: int = None,
-    ) -> DynamicsVector:
+    ) -> Union[DynamicsVector, List[DynamicsVector]]:
         if is_none(index):
             return self._list
         else:
@@ -279,8 +279,8 @@ def get_affine_parameter_bounds(
     lb_theta: ModelParameters,
     ub_theta: ModelParameters,
 ) -> Tuple[AffineModelParameters, AffineModelParameters]:
-    cond = lb_theta.as_array() < ub_theta.as_array()
-    assert np.all(cond)
+    lb_theta = ModelParameters(np.minimum(lb_theta.as_array(), ub_theta.as_array()))
+    ub_theta = ModelParameters(np.maximum(lb_theta.as_array(), ub_theta.as_array()))
 
     lb_theta_aff = AffineModelParameters()
     ub_theta_aff = AffineModelParameters()
