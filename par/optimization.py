@@ -60,6 +60,17 @@ class NMPC():
         self._us_guess = VectorList(self._N * [Input()])
         self._solver = self._init_solver(is_verbose)
 
+    @property
+    def N(self) -> int:
+        return self._N
+
+    @property
+    def Q(self) -> np.ndarray:
+        return self._Q
+
+    @property
+    def R(self) -> np.ndarray:
+        return self._R
 
     def get_predicted_states(self) -> VectorList:
         nx = self._model.nx
