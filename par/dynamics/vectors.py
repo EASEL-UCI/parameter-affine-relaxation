@@ -275,6 +275,19 @@ class ProcessNoise(DynamicsVector):
         super().__init__(PROCESS_NOISE_CONFIG, w)
 
 
+def get_parameter_bounds(
+    nominal_parameters: ModelParameters,
+    lb_factor: float,
+    ub_factor: float,
+) -> Tuple[ModelParameters, ModelParameters]:
+    lb_theta_arr = lb_factor * nominal_parameters.as_array()
+    ub_theta_arr = ub_factor * nominal_parameters.as_array()
+    return (
+        ModelParameters(np.minimum(lb_theta_arr, ub_theta_arr)),
+        ModelParameters(np.maximum(lb_theta_arr, ub_theta_arr))
+    )
+
+
 def get_affine_parameter_bounds(
     lb_theta: ModelParameters,
     ub_theta: ModelParameters,

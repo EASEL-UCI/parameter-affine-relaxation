@@ -1,6 +1,8 @@
+from typing import Tuple
 import numpy as np
 
-from par.dynamics.vectors import ProcessNoise, VectorList, State
+from par.dynamics.vectors import *
+from par.dynamics.models import NonlinearQuadrotorModel
 from par.utils.math import random_unit_quaternion
 
 
@@ -23,8 +25,18 @@ def get_random_state(
     ub_vel: np.ndarray,
 ) -> State:
     x = State()
-    x['position_wf'] = np.random.uniform(lb_pos, ub_pos)
-    x['attitude'] = random_unit_quaternion()
-    x['linear_velocity_bf'] = np.random.uniform(lb_vel, ub_vel)
-    x['angular_velocity_bf'] = np.random.uniform(lb_vel, ub_vel)
+    x.set_member('position_wf', np.random.uniform(lb_pos, ub_pos))
+    x.set_member('attitude', random_unit_quaternion())
+    x.set_member('linear_velocity_bf', np.random.uniform(lb_vel, ub_vel))
+    x.set_member('angular_velocity_bf', np.random.uniform(lb_vel, ub_vel))
     return x
+
+
+def get_random_model(
+    nominal_model: NonlinearQuadrotorModel,
+    lb_factor: float,
+    ub_factor: float,
+) -> NonlinearQuadrotorModel:
+    perturb = np.random.uniform(lb_factor, ub_factor, nominal_model.ntheta)
+    param_perturb = ModelParameters(perturb * nominal_model.parameters.as_array())
+    return NonlinearQuadrotorModel(param_perturb, nominal_model.lbu, nominal_model.ubu)

@@ -370,6 +370,10 @@ class MHPE():
         self._ubg = []
         self._solver = self._init_solver()
 
+    @property
+    def M(self) -> int:
+        return self._M
+
     def reset_measurements(self, x0: State) -> None:
         self._xs = VectorList(x0)
         self._ws = VectorList()
@@ -404,7 +408,6 @@ class MHPE():
 
         # Skip this solver call if measurement history isn't full length
         if not self._measurements_are_full():
-            print('\nInput more measurements before solving!\n')
             return self._sol
 
         # Get default inequality constraints
@@ -515,7 +518,10 @@ class MHPE():
             if stats['t_wall_solver'] <= 0.0:
                 stats['t_wall_solver'] = self._solve_time
         except KeyError:
-            if stats['t_wall_total'] <= 0.0:
+            try:
+                if stats['t_wall_total'] <= 0.0:
+                    stats['t_wall_total'] = self._solve_time
+            except KeyError:
                 stats['t_wall_total'] = self._solve_time
         return stats
 
