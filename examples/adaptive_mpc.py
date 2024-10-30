@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import numpy as np
 from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
