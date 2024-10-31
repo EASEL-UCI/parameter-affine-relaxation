@@ -498,7 +498,7 @@ def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     return NonlinearQuadrotorModel(params, lbu, ubu)
 
 
-def FusionOneQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
+def FusionOneModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     '''
     Fusion 1 quadrotor identification: https://arc.aiaa.org/doi/epdf/10.2514/6.2020-1238
     '''
