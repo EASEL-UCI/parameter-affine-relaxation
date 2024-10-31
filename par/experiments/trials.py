@@ -1,14 +1,12 @@
-from typing import Callable, List
+from typing import List
 import multiprocessing as mp
 import datetime
 import pickle
 
-import numpy as np
-
 from par.dynamics.vectors import *
 from par.dynamics.models import NonlinearQuadrotorModel
 from par.optimization import NMPC, MHPE
-from par.utils.experiments.data import SimData
+from par.experiments.data import TrialData
 
 
 def run_parallel_trials(
@@ -74,7 +72,7 @@ def adaptive_mpc_trial(
     w = ProcessNoise()
     xs = VectorList()
     us = VectorList()
-    data = []
+    dataset = []
 
     # Iterate sim
     for k in range(len(process_noises.get())):
@@ -102,13 +100,13 @@ def adaptive_mpc_trial(
 
         # log sim data
         if k >= mhpe.M:
-            data += [SimData(
+            dataset += [TrialData(
                 x, u, w, theta, xref, uref, true_model.parameters.as_affine(),
                 nmpc.Q, nmpc.R, mhpe.get_full_solution(), mhpe.get_solver_stats(),
             )]
 
     file_path = data_path + str(datetime.datetime.now()) + '.pkl'
     with open(file_path, 'wb') as file:
-        pickle.dump(data, file)
+        pickle.dump(dataset, file)
 
     print('Trial completed!')

@@ -1,8 +1,8 @@
 from par.dynamics.vectors import *
 from par.dynamics.models import NonlinearQuadrotorModel
 from par.optimization import NMPC, MHPE
-from par.utils.experiments.random import *
-from par.utils.experiments.trials import *
+from par.experiments.trials import run_parallel_trials
+from par.experiments.random import *
 
 from consts.trials import *
 
@@ -22,6 +22,7 @@ def run_trials(
     random_states = []
     process_noises = []
 
+    # Generate random sim conditions for all solvers
     for i in range(NUM_TRIALS):
         true_models += [
             get_random_model(nominal_model, LB_THETA_FACTOR, UB_THETA_FACTOR)]
@@ -30,8 +31,6 @@ def run_trials(
         process_noises += [
             get_process_noise_seed(lbw, ubw, SIM_LEN)]
 
-
-    nmpc = NMPC(DT, N, Q, R, QF, nominal_model.as_affine())
     lb_theta, ub_theta = get_parameter_bounds(
         nominal_model.parameters, LB_THETA_FACTOR, UB_THETA_FACTOR)
 
@@ -40,9 +39,11 @@ def run_trials(
 
             full_path = data_path + plugin + '/'
             if is_qp['is_qp']:
+                nmpc = NMPC(DT, N, Q, R, QF, nominal_model.as_affine())
                 mhpe = MHPE(DT, M, P_aff, S_aff, nominal_model.as_affine(), plugin=plugin)
             else:
-                mhpe = MHPE(DT, M, P, S, nominal_model.as_affine(), plugin=plugin)
+                nmpc = NMPC(DT, N, Q, R, QF, nominal_model)
+                mhpe = MHPE(DT, M, P, S, nominal_model, plugin=plugin)
 
             run_parallel_trials(
                 is_affine=is_qp['is_qp'], data_path=full_path,
