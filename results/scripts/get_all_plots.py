@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 
 from get_plots import get_plots_per_model
-from consts.trials import SOLVERS
 from consts.paths import DATA_PATH, CRAZYFLIE_PATH
 
 
