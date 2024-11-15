@@ -12,8 +12,7 @@ from par.optimization import NMPC
 order = 8
 nl_model = CrazyflieModel()
 km_model = KoopmanLiftedQuadrotorModel(
-    order, nl_model.parameters, nl_model.r, nl_model.s,
-    nl_model.lbu, nl_model.ubu
+    order, nl_model.parameters, nl_model.lbu, nl_model.ubu
 )
 
 dt = 0.1
@@ -25,7 +24,7 @@ Q = np.diag(np.hstack((
     1.0 * np.ones(3), 1.0 * np.ones(3*(order-1)),    # angular velocity
 )))
 R = 0.0 * np.eye(4)
-Qf = 2.0 * Q
+Qf = 1.0 * Q
 km_mpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=km_model, is_verbose=True)
 
 x = State()

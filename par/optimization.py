@@ -2,10 +2,13 @@ from typing import List, Union
 import time
 
 import casadi as cs
+import matplotlib.ticker
 import numpy as np
 from scipy.interpolate import make_interp_spline
-import matplotlib.pyplot as plt
 import matplotlib
+import matplotlib.pyplot as plt
+plt.rcParams.update({"font.family": "Times New Roman"})
+plt.rcParams['text.usetex'] = True
 
 from par.constants import BIG_NEGATIVE, BIG_POSITIVE
 from par.config import STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG, \
@@ -57,7 +60,7 @@ class NMPC():
         self._lbu = Input(get_config_values('lower_bound', INPUT_CONFIG))
         self._ubu = Input(get_config_values('upper_bound', INPUT_CONFIG))
         self._theta = self._model.parameters
-        self._us_guess = VectorList(self._N * [Input()])
+        self._us_guess = VectorList(self._N * [self._model.ubu])
         self._solver = self._init_solver(is_verbose)
 
     @property
@@ -113,16 +116,16 @@ class NMPC():
 
         t = dt * np.arange(N)
         interp_N = 1000
-        fig, axs = plt.subplots(5, figsize=(9, 7))
+        fig, axs = plt.subplots(5, figsize=(6, 6))
 
         if is_none(us):
             us = self.get_predicted_inputs().as_array()
         else:
             us = us.as_array()
-        legend = ['u1', 'u2', 'u3', 'u4']
+        legend = [r'$u_1(t)$', r'$u_2(t)$', r'$u_3(t)$', r'$u_4(t)$']
         self._plot_trajectory(
             axs[0], t, us, interp_N, legend,
-            'squared motor\nang vel (rad/s)^2',
+            'Thrust (N)',
         )
 
         if not self._is_koopman:
@@ -132,29 +135,29 @@ class NMPC():
                 xs = xs.as_array()
             if len(xs) > len(us):
                 xs = xs[:len(us), :]
-            legend = ['x', 'y', 'z']
+            legend = [r'$p_x^W(t)$', r'$p_y^W(t)$', r'$p_z^W(t)$']
             self._plot_trajectory(
                 axs[1], t, xs[:,:3], interp_N, legend,
-                'pos (m)'
+                'Position (m)'
             )
-            legend = ['qw', 'qx', 'qy', 'qz']
+            legend = [r'$q_w^W(t)$', r'$q_x^W(t)$', r'$q_y^W(t)$', r'$q_z^W(t)$']
             self._plot_trajectory(
                 axs[2], t, xs[:, 3:7], interp_N, legend,
-                'att (quat)'
+                'Attitude (quat)'
             )
-            legend = ['vx', 'vy', 'vz']
+            legend = [r'$v_x^B(t)$', r'$v_y^B(t)$', r'$v_z^B(t)$']
             self._plot_trajectory(
                 axs[3], t, xs[:, 7:10], interp_N, legend,
-                'body frame\nvel (m/s)'
+                'Linear\nvelocity (m/s)'
             )
-            legend = ['wx', 'wy', 'wz']
+            legend = [r'$w_x^B(t)$', r'$w_y^B(t)$', r'$w_z^B(t)$']
             self._plot_trajectory(
                 axs[4], t, xs[:, 10:13], interp_N, legend,
-                'body frame\nang vel (rad/s)',
+                'Angular\nvelocity (rad/s)',
             )
 
         for ax in axs.flat:
-            ax.set(xlabel='time (s)')
+            ax.set(xlabel='Time (s)')
             ax.label_outer()
         plt.show()
 
@@ -181,7 +184,7 @@ class NMPC():
         if is_none(ubu): ubu = self._ubu
         if is_none(theta): theta = self._theta
         if is_none(us_guess): us_guess = self._us_guess
-        if is_none(xs_guess): xs_guess = VectorList(self._N * [x])
+        if is_none(xs_guess): xs_guess = xref #  VectorList(self._N * [x])
 
         # Initialize the parameter argument
         p = theta.as_list()
@@ -271,7 +274,11 @@ class NMPC():
 
         # Create NLP solver
         nlp_prob = {'f': J, 'x': d, 'p': p, 'g': g}
-        opts = {'ipopt.max_iter': 1000}
+        opts = {
+            'error_on_fail': False,
+            'ipopt.max_iter': 3000,
+            'ipopt.tol': 1e-8,
+        }
         if not is_verbose:
             opts['ipopt.print_level'] = 0
             opts['print_time'] = 0
@@ -300,19 +307,22 @@ class NMPC():
 
     def _plot_trajectory(
         self,
-        ax: matplotlib.axes,
+        ax: matplotlib.axes.Axes,
         Xs: np.ndarray,
         traj: np.ndarray,
         interp_N: int,
         legend: List[str],
         ylabel: str,
     ) -> None:
-        ax.set_ylabel(ylabel)
+        formatter = matplotlib.ticker.FormatStrFormatter('%.1f')
+        ax.yaxis.set_major_formatter(formatter)
+        ax.locator_params(axis='y', nbins=3)
+        ax.set_ylabel(ylabel, loc='bottom')
         for i in range(traj.shape[1]):
             x_interp = self._get_interpolation(Xs, Xs, interp_N)
             y_interp = self._get_interpolation(Xs, traj[:, i], interp_N)
             ax.plot(x_interp, y_interp, label=legend[i])
-        ax.legend()
+        ax.legend(loc='upper right')
 
     def _get_interpolation(
         self,

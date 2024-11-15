@@ -231,7 +231,8 @@ KOOPMAN_PROCESS_NOISE_CONFIG = {
 
 NLP_SOLVER_CONFIG = {
     'ipopt': {
-        'ipopt.max_iter': 1000,
+        'ipopt.max_iter': 3000,
+        'ipopt.tol': 1e-8,
         'ipopt.print_level': 0,
         'print_time': 0,
         'ipopt.sb': 'yes',
@@ -240,11 +241,9 @@ NLP_SOLVER_CONFIG = {
 
 
 QP_SOLVER_CONFIG = {
-    'qpoases': {},
     'osqp': {
         'osqp.max_iter': 4000,
-    },
-    'proxqp': {
-        'proxqp.max_iter': 1000,
+        'osqp.eps_abs': 1e-8,
+        'osqp.verbose': False,
     },
 }

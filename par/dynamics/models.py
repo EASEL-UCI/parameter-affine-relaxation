@@ -4,8 +4,7 @@ import casadi as cs
 import numpy as np
 
 from par.utils import quat
-from par.dynamics.vectors import State, Input, ModelParameters, ProcessNoise, \
-                                    AffineModelParameters
+from par.dynamics.vectors import *
 from par.koopman.dynamics import get_state_matrix, get_input_matrix
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
@@ -64,14 +63,6 @@ class DynamicsModel():
     @property
     def b(self) -> Input:
         return self._b
-
-    @property
-    def r(self) -> Input:
-        return self._r
-
-    @property
-    def s(self) -> Input:
-        return self._s
 
     @property
     def lbu(self) -> Input:
@@ -181,7 +172,9 @@ class DynamicsModel():
         k2 = f(x + dt/2 * k1, u, w, theta)
         k3 = f(x + dt/2 * k2, u, w, theta)
         k4 = f(x + dt * k3, u, w, theta)
-        return x + dt/6 * (k1 +2*k2 +2*k3 +k4)
+        x_next = x + dt/6 * (k1 +2*k2 +2*k3 + k4)
+        x_next[3:7] = x_next[3:7] / cs.norm_2(x_next[3:7])
+        return x_next
 
 
 class ParameterAffineQuadrotorModel(DynamicsModel):
@@ -323,13 +316,11 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         self,
         observables_order: int,
         parameters: ModelParameters,
-        r: Input,
-        s: Input,
         lbu: Input = get_config_values('lower_bound', INPUT_CONFIG),
         ubu: Input = get_config_values('upper_bound', INPUT_CONFIG),
     ) -> None:
         super().__init__(
-            parameters, r, s, lbu, ubu, KOOPMAN_STATE_CONFIG, INPUT_CONFIG,
+            parameters, lbu, ubu, KOOPMAN_STATE_CONFIG, INPUT_CONFIG,
             KOOPMAN_PROCESS_NOISE_CONFIG, observables_order
         )
         self._set_lifted_model()
@@ -343,10 +334,6 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         w: Union[np.ndarray, cs.SX] = None,
         theta: Union[np.ndarray, cs.SX] = None,
     ) -> Union[np.ndarray, cs.SX]:
-        if is_none(theta):
-            theta = self.parameters.as_array()
-        if is_none(w):
-            w = ProcessNoise().as_array()
         xf = self.rk4(self.f, dt, z0, x, u, w, theta)
         if type(xf) == cs.DM:
             return np.array(xf).flatten()
@@ -366,7 +353,8 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         if is_none(theta):
             theta = self.parameters.as_array()
         if is_none(w):
-            w = ProcessNoise().as_array()
+            #w = ProcessNoise().as_array()
+            w = KoopmanLiftedProcessNoise(order=self.order).as_array()
         return self._f(z0, x, u, w, theta)
 
     def rk4(
@@ -403,7 +391,10 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         Ixx = symbolic('Ixx', PARAMETER_CONFIG)
         Iyy = symbolic('Iyy', PARAMETER_CONFIG)
         Izz = symbolic('Izz', PARAMETER_CONFIG)
-        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz))
+        c = symbolic('c', PARAMETER_CONFIG)
+        r = symbolic('r', PARAMETER_CONFIG)
+        s = symbolic('s', PARAMETER_CONFIG)
+        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, c, r, s))
 
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
@@ -430,9 +421,9 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
             cs.SX.ones(1, self.nu),
         ))
         B = cs.SX(cs.vertcat(
-            cs.SX(self._s.as_array()).T,
-            -cs.SX(self._r.as_array()).T,
-            cs.SX(self._b.as_array() * alternating_ones(self.nu)).T,
+            s.T,
+            -r.T,
+            (c * alternating_ones(self.nu)).T,
         ))
         u = symbolic('normalized_squared_motor_speed', INPUT_CONFIG)
 
@@ -469,32 +460,10 @@ def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     c = 7.9379e-12
     params.set_member('c', c/k * np.ones(4))
 
-
     pwm_to_rpm = lambda pwm: 0.2685 * pwm + 4070.3
     pwm_max = 65535
     lbu = Input(np.zeros(4))
     ubu = Input(k * pwm_to_rpm(pwm_max)**2 * np.ones(4))
-    return NonlinearQuadrotorModel(params, lbu, ubu)
-
-
-def AsymmetricQuadrotorModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
-    '''
-    Asymmetric quadrotor identification: https://ieeexplore.ieee.org/document/9476871
-    '''
-    params = ModelParameters()
-    params.set_member('m', 2.5)
-    params.set_member('a', a)
-    params.set_member('Ixx', 54.7)
-    params.set_member('Iyy', 15.6)
-    params.set_member('Izz', 57.2)
-    params.set_member('r', 0.14 * np.array([1.0, 1.0, -1.0, -1.0]))
-    params.set_member('s', 0.315 * np.array([1.0, -1.0, -1.0, 1.0]))
-    k = 1.6e-5
-    c = 1.7e-6
-    params.set_member('c', c/k * np.ones(4))
-
-    lbu = Input(np.zeros(4))
-    ubu = Input(params.get_member('m') * GRAVITY / 0.5 * np.ones(4))
     return NonlinearQuadrotorModel(params, lbu, ubu)
 
 
@@ -510,10 +479,15 @@ def FusionOneModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member('Izz', 1.50e-3)
     params.set_member('r', 0.0635 * np.array([1.0, 1.0, -1.0, -1.0]))
     params.set_member('s', 0.0635 * np.array([1.0, -1.0, -1.0, 1.0]))
-    k = 0.279
-    c = 0.333
-    params.set_member('c', c/k * np.ones(4))
+    DR = 0.0584
+    CT = 0.279
+    CP = 0.333
+    b = CP * DR / (2 * np.pi * CT)
+    params.set_member('c', b * np.ones(4))
 
     lbu = Input(np.zeros(4))
-    ubu = Input(params.get_member('m') * GRAVITY / 0.5 * np.ones(4))
+    rho = 1.204
+    k = rho * CT * DR**4 / (2 * np.pi)**2
+    wbu = 35 * 1000 * 2 * np.pi / 60
+    ubu = Input(k * wbu**2 * np.ones(4))
     return NonlinearQuadrotorModel(params, lbu, ubu)

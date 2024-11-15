@@ -1,8 +1,11 @@
 X_TICK_LABELS = [
-    'ProxQP', 'OSQP'
+    'LQ-MHPE', 'NMHPE', 'None',
 ]
 
 
 COLORS = [
-    'blue', 'green',
+    'blue', 'green', 'salmon', 'gray',
 ]
+
+
+MONTE_CARLO_COLOR = 'tab:blue'

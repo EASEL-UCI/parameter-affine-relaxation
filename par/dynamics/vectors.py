@@ -8,8 +8,7 @@ from par.utils.misc import is_none, convert_casadi_to_numpy_array
 from par.utils.config import get_dimensions, get_config_values
 from par.koopman.observables import attitude, gravity, velocity, position
 from par.constants import GRAVITY
-from par.config import PARAMETER_CONFIG, RELAXED_PARAMETER_CONFIG, PROCESS_NOISE_CONFIG,\
-                        STATE_CONFIG, KOOPMAN_STATE_CONFIG, INPUT_CONFIG
+from par.config import *
 
 
 class DynamicsVector():
@@ -57,7 +56,10 @@ class DynamicsVector():
     ) -> None:
         self._assert(id, member)
         member = np.clip(
-            member, self._config[id]['lower_bound'], self._config[id]['upper_bound'])
+            member,
+            np.repeat(self._config[id]['lower_bound'], self._n),
+            np.repeat(self._config[id]['upper_bound'], self._n)
+        )
         self._members[id] = member
 
     def _assert(
@@ -273,6 +275,15 @@ class ProcessNoise(DynamicsVector):
         w: np.ndarray = None,
     ) -> None:
         super().__init__(PROCESS_NOISE_CONFIG, w)
+
+
+class KoopmanLiftedProcessNoise(DynamicsVector):
+    def __init__(
+        self,
+        w: np.ndarray = None,
+        order: int = 1,
+    ) -> None:
+        super().__init__(KOOPMAN_PROCESS_NOISE_CONFIG, w, order)
 
 
 def get_parameter_bounds(

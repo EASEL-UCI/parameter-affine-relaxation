@@ -2,8 +2,7 @@ from typing import Union, List, Tuple
 
 import numpy as np
 
-from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
-                                    AffineModelParameters
+from par.dynamics.vectors import *
 
 
 class TrialData():
@@ -61,17 +60,17 @@ def get_mhpe_non_convergence_rate(dataset: List[TrialData]) -> float:
     return non_convergences / len(dataset)
 
 
-def get_states(dataset: List[TrialData]) -> np.ndarray:
-    return np.array([data_k.x.as_array() for data_k in dataset])
+def get_states(dataset: List[TrialData]) -> VectorList:
+    return VectorList([data_k.x for data_k in dataset])
 
 
-def get_inputs(dataset: List[TrialData]) -> np.ndarray:
-    return np.array([data_k.u.as_array() for data_k in dataset])
+def get_inputs(dataset: List[TrialData]) -> VectorList:
+    return VectorList([data_k.u for data_k in dataset])
 
 
 def get_cost(dataset: List[TrialData]) -> float:
-    xs = get_states(dataset)
-    us = get_inputs(dataset)
+    xs = get_states(dataset).as_array()
+    us = get_inputs(dataset).as_array()
     xrefs = [data_k.xref.as_array() for data_k in dataset]
     urefs = [data_k.uref.as_array() for data_k in dataset]
     Qs = [data_k.Q for data_k in dataset]

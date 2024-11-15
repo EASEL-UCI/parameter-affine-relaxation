@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
-from par.dynamics.models import CrazyflieModel
+from par.dynamics.models import FusionOneModel
 
 from consts.trials import *
-from consts.crazyflie import *
-from consts.paths import DATA_PATH, CRAZYFLIE_PATH
+from consts.fusion_one import *
+from consts.paths import DATA_PATH, FUSION_ONE_PATH
 from run_trials import run_trials_per_model
 
 
 def main():
-    nominal_model = CrazyflieModel(A)
-    data_path = DATA_PATH + CRAZYFLIE_PATH
+    nominal_model = FusionOneModel(A)
+    data_path = DATA_PATH + FUSION_ONE_PATH
     run_trials_per_model(
         nominal_model=nominal_model,
         N=N, Q=Q, R=R, Qf=QF, M=M, P=P, S=S, P_aff=P_AFF, S_aff=S_AFF,

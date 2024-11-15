@@ -7,15 +7,25 @@ from par.experiments.random import *
 from consts.trials import *
 
 
-def run_trials(
+def run_trials_per_model(
     nominal_model: NonlinearQuadrotorModel,
+    N: int,
+    Q: np.ndarray,
+    R: np.ndarray,
+    Qf: np.ndarray,
     M: int,
     P: np.ndarray,
     S: np.ndarray,
     P_aff: np.ndarray,
     S_aff: np.ndarray,
+    lbp: np.ndarray,
+    ubp:np.ndarray,
+    lbv: np.ndarray,
+    ubv: np.ndarray,
     lbw: np.ndarray,
     ubw: np.ndarray,
+    lb_theta_factor: float,
+    ub_theta_factor: float,
     data_path: str,
 ) -> None:
     true_models = []
@@ -25,24 +35,28 @@ def run_trials(
     # Generate random sim conditions for all solvers
     for i in range(NUM_TRIALS):
         true_models += [
-            get_random_model(nominal_model, LB_THETA_FACTOR, UB_THETA_FACTOR)]
+            get_random_model(nominal_model, lb_theta_factor, ub_theta_factor)]
         random_states += [
-            get_random_state(LB_POS, UB_POS, LB_VEL, UB_VEL)]
+            get_random_state(lbp, ubp, lbv, ubv)]
         process_noises += [
             get_process_noise_seed(lbw, ubw, SIM_LEN)]
 
     lb_theta, ub_theta = get_parameter_bounds(
-        nominal_model.parameters, LB_THETA_FACTOR, UB_THETA_FACTOR)
+        nominal_model.parameters, lb_theta_factor, ub_theta_factor)
 
     for plugin, is_qp in SOLVERS.items():
             print('Starting trials for', plugin, '...')
 
             full_path = data_path + plugin + '/'
-            if is_qp['is_qp']:
-                nmpc = NMPC(DT, N, Q, R, QF, nominal_model.as_affine())
+
+            if plugin == 'none':
+                nmpc = NMPC(DT, N, Q, R, Qf, nominal_model)
+                mhpe = None
+            elif is_qp['is_qp']:
+                nmpc = NMPC(DT, N, Q, R, Qf, nominal_model.as_affine())
                 mhpe = MHPE(DT, M, P_aff, S_aff, nominal_model.as_affine(), plugin=plugin)
             else:
-                nmpc = NMPC(DT, N, Q, R, QF, nominal_model)
+                nmpc = NMPC(DT, N, Q, R, Qf, nominal_model)
                 mhpe = MHPE(DT, M, P, S, nominal_model, plugin=plugin)
 
             run_parallel_trials(

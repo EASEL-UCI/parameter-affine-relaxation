@@ -7,6 +7,7 @@ from par.dynamics.vectors import *
 from par.dynamics.models import NonlinearQuadrotorModel
 from par.optimization import NMPC, MHPE
 from par.experiments.data import TrialData
+from par.utils.misc import is_none
 
 
 def run_parallel_trials(
@@ -59,7 +60,10 @@ def adaptive_mpc_trial(
 
     # Init state
     x = random_state
-    mhpe.reset_measurements(x)
+    if is_none(mhpe):
+        pass
+    else:
+        mhpe.reset_measurements(x)
 
     # MPC args
     theta = nominal_model.parameters
@@ -91,19 +95,25 @@ def adaptive_mpc_trial(
 
         # Update current state and trajectory history
         x = true_model.step_sim(dt=dt, x=x, u=u, w=w)
+        # Clamp states to prevent ill-conditioned problems
+        x.set(np.clip(x.as_array(), -1.0e9, 1.0e9))
         xs.append(x)
         us.append(u)
 
         # Get parameter estimate
-        mhpe.solve(x, u, w, lb_theta=lb_theta, ub_theta=ub_theta)
-        theta = mhpe.get_parameter_estimate()
-
-        # log sim data
-        if k >= mhpe.M:
+        if is_none(mhpe):
             dataset += [TrialData(
                 x, u, w, theta, xref, uref, true_model.parameters.as_affine(),
-                nmpc.Q, nmpc.R, mhpe.get_full_solution(), mhpe.get_solver_stats(),
+                nmpc.Q, nmpc.R, None, None,
             )]
+        else:
+            mhpe.solve(x, u, w, lb_theta=lb_theta, ub_theta=ub_theta)
+            theta = mhpe.get_parameter_estimate()
+            if k >= mhpe.M:
+                dataset += [TrialData(
+                    x, u, w, theta, xref, uref, true_model.parameters.as_affine(),
+                    nmpc.Q, nmpc.R, mhpe.get_full_solution(), mhpe.get_solver_stats(),
+                )]
 
     file_path = data_path + str(datetime.datetime.now()) + '.pkl'
     with open(file_path, 'wb') as file:

@@ -47,7 +47,7 @@ P = np.diag(np.hstack((
     1.0e1 * np.ones(3),
 )))
 S = 1.0e6 * np.eye(model_inacc_aff.nw)
-mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc_aff, plugin='proxqp')
+mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc_aff, plugin='osqp')
 
 # MHE stuff
 lb_theta_init = lb_factor * model_inacc.parameters.as_array()
