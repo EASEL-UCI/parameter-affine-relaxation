@@ -271,10 +271,10 @@ class NonlinearQuadrotorModel(DynamicsModel):
         Ixx = symbolic('Ixx', PARAMETER_CONFIG)
         Iyy = symbolic('Iyy', PARAMETER_CONFIG)
         Izz = symbolic('Izz', PARAMETER_CONFIG)
-        c = symbolic('c', PARAMETER_CONFIG)
-        r = symbolic('r', PARAMETER_CONFIG)
-        s = symbolic('s', PARAMETER_CONFIG)
-        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, c, r, s))
+        b = symbolic('b', PARAMETER_CONFIG)
+        r = symbolic('c', PARAMETER_CONFIG)
+        s = symbolic('d', PARAMETER_CONFIG)
+        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, b, r, s))
 
         # Constants
         g = cs.SX(cs.vertcat(0, 0, -GRAVITY))
@@ -290,7 +290,7 @@ class NonlinearQuadrotorModel(DynamicsModel):
         B = cs.SX(cs.vertcat(
             s.T,
             -r.T,
-            (c * alternating_ones(self.nu)).T,
+            (b * alternating_ones(self.nu)).T,
         ))
 
         # Additive process noise
@@ -391,10 +391,10 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         Ixx = symbolic('Ixx', PARAMETER_CONFIG)
         Iyy = symbolic('Iyy', PARAMETER_CONFIG)
         Izz = symbolic('Izz', PARAMETER_CONFIG)
-        c = symbolic('c', PARAMETER_CONFIG)
-        r = symbolic('r', PARAMETER_CONFIG)
-        s = symbolic('s', PARAMETER_CONFIG)
-        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, c, r, s))
+        b = symbolic('b', PARAMETER_CONFIG)
+        r = symbolic('c', PARAMETER_CONFIG)
+        s = symbolic('d', PARAMETER_CONFIG)
+        theta = cs.SX(cs.vertcat(m, a, Ixx, Iyy, Izz, b, r, s))
 
         J = cs.SX(cs.diag(cs.vertcat(Ixx, Iyy, Izz)))
 
@@ -423,7 +423,7 @@ class KoopmanLiftedQuadrotorModel(DynamicsModel):
         B = cs.SX(cs.vertcat(
             s.T,
             -r.T,
-            (c * alternating_ones(self.nu)).T,
+            (b * alternating_ones(self.nu)).T,
         ))
         u = symbolic('normalized_squared_motor_speed', INPUT_CONFIG)
 
@@ -454,11 +454,11 @@ def CrazyflieModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member('Ixx', 1.436 * 10**-5)
     params.set_member('Iyy', 1.395 * 10**-5)
     params.set_member('Izz', 2.173 * 10**-5)
-    params.set_member('r', 0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
-    params.set_member('s', 0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
+    params.set_member('c', 0.0283 * np.array([1.0, 1.0, -1.0, -1.0]))
+    params.set_member('d', 0.0283 * np.array([1.0, -1.0, -1.0, 1.0]))
     k = 3.1582e-10
-    c = 7.9379e-12
-    params.set_member('c', c/k * np.ones(4))
+    b = 7.9379e-12
+    params.set_member('b', b/k * np.ones(4))
 
     pwm_to_rpm = lambda pwm: 0.2685 * pwm + 4070.3
     pwm_max = 65535
@@ -477,13 +477,13 @@ def FusionOneModel(a=np.zeros(3)) -> NonlinearQuadrotorModel:
     params.set_member('Ixx', 4.27e-4)
     params.set_member('Iyy', 6.09e-4)
     params.set_member('Izz', 1.50e-3)
-    params.set_member('r', 0.0635 * np.array([1.0, 1.0, -1.0, -1.0]))
-    params.set_member('s', 0.0635 * np.array([1.0, -1.0, -1.0, 1.0]))
+    params.set_member('c', 0.0635 * np.array([1.0, 1.0, -1.0, -1.0]))
+    params.set_member('d', 0.0635 * np.array([1.0, -1.0, -1.0, 1.0]))
     DR = 0.0584
     CT = 0.279
     CP = 0.333
     b = CP * DR / (2 * np.pi * CT)
-    params.set_member('c', b * np.ones(4))
+    params.set_member('b', b * np.ones(4))
 
     lbu = Input(np.zeros(4))
     rho = 1.204

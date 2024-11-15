@@ -260,9 +260,9 @@ class ModelParameters(DynamicsVector):
         aff_members = {}
         aff_members['1/m'] = 1 / m
         aff_members['a/m'] = self._members['a'] / m
-        aff_members['s/Ixx'] = self._members['s'] / Ixx
-        aff_members['r/Iyy'] = self._members['r'] / Iyy
-        aff_members['c/Izz'] = self._members['c'] / Izz
+        aff_members['d/Ixx'] = self._members['d'] / Ixx
+        aff_members['c/Iyy'] = self._members['c'] / Iyy
+        aff_members['b/Izz'] = self._members['b'] / Izz
         aff_members['Ixx_cross'] = (Izz - Iyy) / Ixx
         aff_members['Iyy_cross'] = (Ixx - Izz) / Iyy
         aff_members['Izz_cross'] = (Iyy - Ixx) / Izz
@@ -316,8 +316,8 @@ def get_affine_parameter_bounds(
     ub_theta_aff.set_member('a/m', ub_theta.get_member('a') / lb_theta.get_member('m'))
 
     # s/Ixx bounds
-    lb_s = lb_theta.get_member('s')
-    ub_s = ub_theta.get_member('s')
+    lb_s = lb_theta.get_member('d')
+    ub_s = ub_theta.get_member('d')
     lb_s_aff = np.zeros(4)
     ub_s_aff = np.zeros(4)
     for i in range(len(lb_s)):
@@ -329,12 +329,12 @@ def get_affine_parameter_bounds(
             ub_s_aff[i] = ub_s[i] / lb_theta.get_member('Ixx')
         else:
             ub_s_aff[i] = ub_s[i] / ub_theta.get_member('Ixx')
-    lb_theta_aff.set_member('s/Ixx', lb_s_aff)
-    ub_theta_aff.set_member('s/Ixx', ub_s_aff)
+    lb_theta_aff.set_member('d/Ixx', lb_s_aff)
+    ub_theta_aff.set_member('d/Ixx', ub_s_aff)
 
     # r/Iyy bounds
-    lb_r = lb_theta.get_member('r')
-    ub_r = ub_theta.get_member('r')
+    lb_r = lb_theta.get_member('c')
+    ub_r = ub_theta.get_member('c')
     lb_r_aff = np.zeros(4)
     ub_r_aff = np.zeros(4)
     for i in range(len(lb_r)):
@@ -346,12 +346,12 @@ def get_affine_parameter_bounds(
             ub_r_aff[i] = ub_r[i] / lb_theta.get_member('Iyy')
         else:
             ub_r_aff[i] = ub_r[i] / ub_theta.get_member('Iyy')
-    lb_theta_aff.set_member('r/Iyy', lb_r_aff)
-    ub_theta_aff.set_member('r/Iyy', ub_r_aff)
+    lb_theta_aff.set_member('c/Iyy', lb_r_aff)
+    ub_theta_aff.set_member('c/Iyy', ub_r_aff)
 
-    # c/Izz bounds
-    lb_theta_aff.set_member('c/Izz', lb_theta.get_member('c') / ub_theta.get_member('Izz'))
-    ub_theta_aff.set_member('c/Izz', ub_theta.get_member('c') / lb_theta.get_member('Izz'))
+    # b/Izz bounds
+    lb_theta_aff.set_member('b/Izz', lb_theta.get_member('b') / ub_theta.get_member('Izz'))
+    ub_theta_aff.set_member('b/Izz', ub_theta.get_member('b') / lb_theta.get_member('Izz'))
 
     # Ixx_cross bounds
     lb_Ixx_cross = lb_theta.get_member('Izz') - ub_theta.get_member('Iyy')

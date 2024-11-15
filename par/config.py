@@ -34,19 +34,19 @@ PARAMETER_CONFIG = {
         'upper_bound': BIG_POSITIVE,
         'default_value': 0.0,
     },
-    'c': {
+    'b': {
         'dimensions': 4,
         'lower_bound': np.zeros(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
         'default_value': np.zeros(4),
     },
-    'r': {
+    'c': {
         'dimensions': 4,
         'lower_bound': BIG_NEGATIVE * np.ones(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
         'default_value': np.zeros(4),
     },
-    's': {
+    'd': {
         'dimensions': 4,
         'lower_bound': BIG_NEGATIVE * np.ones(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
@@ -68,19 +68,19 @@ RELAXED_PARAMETER_CONFIG = {
         'upper_bound': BIG_POSITIVE * np.ones(3),
         'default_value': np.zeros(3),
     },
-    's/Ixx': {
+    'd/Ixx': {
         'dimensions': 4,
         'lower_bound': BIG_NEGATIVE * np.ones(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
         'default_value': np.zeros(4),
     },
-    'r/Iyy': {
+    'c/Iyy': {
         'dimensions': 4,
         'lower_bound': BIG_NEGATIVE * np.ones(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
         'default_value': np.zeros(4),
     },
-    'c/Izz': {
+    'b/Izz': {
         'dimensions': 4,
         'lower_bound': np.zeros(4),
         'upper_bound': BIG_POSITIVE * np.ones(4),
