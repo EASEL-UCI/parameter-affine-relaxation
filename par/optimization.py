@@ -38,18 +38,11 @@ class NMPC():
         self._lbg = None
         self._ubg = None
 
-        if type(model) == KoopmanLiftedQuadrotorModel:
-            self._is_koopman = True
-            self._state_class = KoopmanLiftedState
-        else:
-            self._is_koopman = False
-            self._state_class = State
-
-        self._lbx = self._state_class(
+        self._lbx = State(
             get_config_values('lower_bound', model.state_config, model.order),
             self._model.order,
         )
-        self._ubx = self._state_class(
+        self._ubx = State(
             get_config_values('upper_bound', model.state_config, model.order),
             self._model.order,
         )
@@ -76,14 +69,8 @@ class NMPC():
         nu = self._model.nu
         xs = VectorList()
         for k in range(1, self._N + 1):
-            if self._is_koopman:
-                xs.append(KoopmanLiftedState(np.array(
-                    self._sol['x'][k*(nx+nu) : k*(nx+nu) + nx]).flatten(),
-                    self._model.order
-                ))
-            else:
-                xs.append(State(np.array(
-                    self._sol['x'][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
+            xs.append(State(np.array(
+                self._sol['x'][k*(nx+nu) : k*(nx+nu) + nx]).flatten()))
         return xs
 
     def get_predicted_inputs(self) -> VectorList:
@@ -124,33 +111,32 @@ class NMPC():
             'Thrust (N)',
         )
 
-        if not self._is_koopman:
-            if is_none(xs):
-                xs = self.get_predicted_states().as_array()
-            else:
-                xs = xs.as_array()
-            if len(xs) > len(us):
-                xs = xs[:len(us), :]
-            legend = [r'$p_x^W(t)$', r'$p_y^W(t)$', r'$p_z^W(t)$']
-            self._plot_trajectory(
-                axs[1], t, xs[:,:3], interp_N, legend,
-                'Position (m)'
-            )
-            legend = [r'$q_w^W(t)$', r'$q_x^W(t)$', r'$q_y^W(t)$', r'$q_z^W(t)$']
-            self._plot_trajectory(
-                axs[2], t, xs[:, 3:7], interp_N, legend,
-                'Attitude (quat)'
-            )
-            legend = [r'$v_x^B(t)$', r'$v_y^B(t)$', r'$v_z^B(t)$']
-            self._plot_trajectory(
-                axs[3], t, xs[:, 7:10], interp_N, legend,
-                'Linear\nvelocity (m/s)'
-            )
-            legend = [r'$w_x^B(t)$', r'$w_y^B(t)$', r'$w_z^B(t)$']
-            self._plot_trajectory(
-                axs[4], t, xs[:, 10:13], interp_N, legend,
-                'Angular\nvelocity (rad/s)',
-            )
+        if is_none(xs):
+            xs = self.get_predicted_states().as_array()
+        else:
+            xs = xs.as_array()
+        if len(xs) > len(us):
+            xs = xs[:len(us), :]
+        legend = [r'$p_x^W(t)$', r'$p_y^W(t)$', r'$p_z^W(t)$']
+        self._plot_trajectory(
+            axs[1], t, xs[:,:3], interp_N, legend,
+            'Position (m)'
+        )
+        legend = [r'$q_w^W(t)$', r'$q_x^W(t)$', r'$q_y^W(t)$', r'$q_z^W(t)$']
+        self._plot_trajectory(
+            axs[2], t, xs[:, 3:7], interp_N, legend,
+            'Attitude (quat)'
+        )
+        legend = [r'$v_x^B(t)$', r'$v_y^B(t)$', r'$v_z^B(t)$']
+        self._plot_trajectory(
+            axs[3], t, xs[:, 7:10], interp_N, legend,
+            'Linear\nvelocity (m/s)'
+        )
+        legend = [r'$w_x^B(t)$', r'$w_y^B(t)$', r'$w_z^B(t)$']
+        self._plot_trajectory(
+            axs[4], t, xs[:, 10:13], interp_N, legend,
+            'Angular\nvelocity (rad/s)',
+        )
 
         for ax in axs.flat:
             ax.set(xlabel='Time (s)')
@@ -159,7 +145,7 @@ class NMPC():
 
     def solve(
         self,
-        x: Union[State, KoopmanLiftedState],
+        x: State,
         xref: VectorList,
         uref: VectorList,
         theta: ModelParameters = None,
@@ -184,11 +170,7 @@ class NMPC():
 
         # Initialize the parameter argument
         p = theta.as_list()
-        if self._is_koopman:
-            assert type(x) == KoopmanLiftedState
-            p += KoopmanLiftedState(x.get_zero_order_array(), 1).as_list()
-        else:
-            assert type(x) == State
+        assert type(x) == State
 
         # Construct optimization arguments
         lbd = x.as_list()
@@ -213,14 +195,9 @@ class NMPC():
         x0 = cs.SX.sym('x0', self._model.nx)
         # Constant for model parameters
         theta = cs.SX.sym('theta', self._model.ntheta)
-        # Constant for koopman initialization
-        if self._is_koopman:
-            z0 = cs.SX.sym('z0', get_dimensions(KOOPMAN_STATE_CONFIG))
-        else:
-            z0 = cs.SX()
 
         # Variables for formulating NLP
-        p = [theta, z0]
+        p = [theta]
         d = [x0]
         g = []
         lbg = []
@@ -235,10 +212,7 @@ class NMPC():
             d += [uk]
 
             # Get the state at the end of the time step
-            if self._is_koopman:
-                xf = self._model.F(self._dt, x=xk, u=uk, theta=theta, z0=z0)
-            else:
-                xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
+            xf = self._model.F(dt=self._dt, x=xk, u=uk, theta=theta)
 
             # New NLP variable for state at the end of the interval
             xk = cs.SX.sym('x' + str(k+1), self._model.nx)
