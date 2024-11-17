@@ -2,7 +2,6 @@
 .vscode*
 
 # results-related paths
-*results/data*
 *paths*
 
 # Byte-compiled / optimized / DLL files
