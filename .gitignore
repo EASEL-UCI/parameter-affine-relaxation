@@ -1,9 +1,6 @@
 # VSCode
 .vscode*
 
-# results-related paths
-*paths*
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
