@@ -6,12 +6,11 @@ from par.dynamics.vectors import State, Input, ProcessNoise, ModelParameters, \
 from par.dynamics.models import CrazyflieModel, NonlinearQuadrotorModel
 from par.utils.math import random_unit_quaternion
 from par.optimization import NMPC, MHPE
-from par.dynamics.vectors import get_affine_parameter_bounds
 
 
 # Parameter perturbation factors
 lb_factor = 0.5
-ub_factor = 2.0
+ub_factor = 1.5
 
 # Perturb model parameters
 model_inacc = CrazyflieModel(0.1 * np.ones(3))
@@ -22,11 +21,13 @@ model_acc = NonlinearQuadrotorModel(param_perturb, model_inacc.lbu, model_inacc.
 
 # Init MPC
 dt = 0.05
-N = 10
-Q = np.eye(model_inacc.nx)
-R = 1.0e-3 * np.eye(model_inacc.nu)
-Qf = 2.0 * Q
-nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=Qf, model=model_inacc)
+N = 25
+Q = np.diag(np.hstack((
+    2e0 * np.ones(3), 1e0 * np.ones(4), np.ones(3), 2e-1 * np.ones(3)
+)))
+R = 1e-1 * np.eye(4)
+QF = 1e0* Q
+nmpc = NMPC(dt=dt, N=N, Q=Q, R=R, Qf=QF, model=model_inacc)
 
 # Init state
 x = State()
@@ -39,14 +40,13 @@ x.set_member('angular_velocity_bf', np.random.uniform(-10.0, 10.0, size=3))
 M = 10
 P = np.diag(np.hstack((
     1.0e2,
-    1.0e1 * np.ones(3),
+    1.0e2 * np.ones(3),
     1.0e5 * np.ones(3),
-    1.0e0 * np.ones(4),
     1.0e2 * np.ones(4),
     1.0e2 * np.ones(4),
     1.0e2 * np.ones(4)
 )))
-S = 1.0e20 * np.eye(model_inacc.nw)
+S = 1.0e6 * np.eye(13)
 mhpe = MHPE(dt=dt, M=M, P=P, S=S, model=model_inacc, x0=x, plugin='ipopt')
 
 # parameter bounds
