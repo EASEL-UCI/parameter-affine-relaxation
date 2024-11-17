@@ -1,7 +1,11 @@
 # Getting Results
 
-## Before running anything...
+## Before running anything
 Before running any scripts, set the proper absolute paths to `data` and `figures` in `scripts\consts\paths.py`.
+
+
+## Accessing the dataset
+Make sure that Git LFS is installed to access the current dataset.
 
 
 ## Setting simulation trial parameters
