@@ -1,7 +1,7 @@
 from typing import List
 import multiprocessing as mp
 import datetime
-import pickle
+import compress_pickle
 
 from par.dynamics.vectors import *
 from par.dynamics.models import NonlinearQuadrotorModel
@@ -117,6 +117,7 @@ def adaptive_mpc_trial(
 
     file_path = data_path + str(datetime.datetime.now()) + '.pkl'
     with open(file_path, 'wb') as file:
-        pickle.dump(dataset, file)
+        compress_pickle.dump(
+            dataset, file, compression="lzma", set_default_extension=False)
 
     print('Trial completed!')

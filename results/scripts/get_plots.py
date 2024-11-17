@@ -1,4 +1,4 @@
-import pickle
+import compress_pickle
 from os import listdir
 from os.path import isfile, join
 from typing import List, Tuple
@@ -35,7 +35,9 @@ def get_datasets(
             with open(file_path, 'rb') as file:
                 # Load list of TrialData objects
                 try:
-                    datasets_per_traj += [pickle.load(file)]
+                    datasets_per_traj += [compress_pickle.load(
+                        file, compression="lzma", set_default_extension=False
+                    )]
                 except EOFError:
                     continue
 
@@ -89,7 +91,6 @@ def get_solve_time_plot(
     if not is_none(model_label):
         plot_axis.set_ylabel(model_label, fontsize=12, fontweight='bold')
         plot_axis.yaxis.set_label_position('left')
-    #plot_axis.text(0.75, 0.75, f'n solves: {len(solve_times_per_solver)}', fontsize=12)
 
 
 def get_trajectory_cost_plot(
@@ -131,8 +132,6 @@ def get_trajectory_cost_plot(
         plot_axis.set_xlabel('Trajectory Cost')
     if not is_none(xlim):
         plot_axis.set_xlim(xlim)
-    #plot_axis.set_yscale('log')
-    #plot_axis.text(0.75, 0.75, f'n trials: {len(costs_per_solver)}', fontsize=12)
 
 
 def plot_trajectory(
@@ -205,7 +204,7 @@ def get_plots_per_model(
 
 
 def main():
-    fig, axs = plt.subplots(2, 3, sharey='row')#, sharey='col')
+    fig, axs = plt.subplots(2, 3, sharey='row')
     fig.align_xlabels()
     for ax in axs.reshape(-1):
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
