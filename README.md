@@ -3,6 +3,6 @@ This repository contains source code and results for the above paper.
 
 
 ## Getting Started
-* Install the python package locally: `pip install -e .`.<br/>
+* Install the python package locally: `pip install -e .`<br/>
 * Check out `examples` to see how to use the package
-* Visit `results` to get the original datasets or generate new ones.
+* Visit `results` to get the original datasets or generate new ones
